@@ -10,6 +10,24 @@ usage()
     exit 2
 }
 
+OSNAME="$(uname -s)"
+case "$OSNAME" in
+    # Linux*)
+        # machine=Linux
+        # ;;
+    # Darwin*)
+        # machine=Mac
+        # ;;
+    CYGWIN*)
+        ulimit -n 1024
+        ;;
+    # MINGW*)
+        # machine=MinGw
+        # ;;
+    *)
+        ;;
+esac
+
 FULL=
 DRY=
 GNUPG_PATH=
@@ -49,35 +67,33 @@ OPTIONS=
 case $INPUT_PATH in
     'sagittarius-mike') 
         INPUT_PATH=/home/mike
-        OUTPUT_PATH="./$INPUT_PATH"
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         ;;
     'sagittarius-family') 
         INPUT_PATH=/home/family
-        OUTPUT_PATH="./$INPUT_PATH"
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /home/family/Vidéos --exclude /home/family/Images'
         ;;
     'sagittarius-videos') 
         INPUT_PATH=/home/family/Vidéos
-        OUTPUT_PATH="./videos"
+        OUTPUT_PATH="$(pwd)/videos"
         ;;
     'sagittarius-images') 
         INPUT_PATH=/home/family/Images
-        OUTPUT_PATH="./images"
+        OUTPUT_PATH="$(pwd)/images"
         ;;
     'virgo-mike') 
         INPUT_PATH=/cygdrive/d/Users/Mike
-        OUTPUT_PATH="./$INPUT_PATH"
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Mike/AppData/Local'
-        ulimit -n 1024
         ;;
     'virgo-family') 
         INPUT_PATH=/cygdrive/d/Users/Family
-        OUTPUT_PATH="./$INPUT_PATH"
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Family/AppData/Local'
-        ulimit -n 1024
         ;;
     *)
-        OUTPUT_PATH="./$INPUT_PATH"
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         ;;
 esac
 

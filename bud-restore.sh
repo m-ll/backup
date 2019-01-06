@@ -10,6 +10,24 @@ usage()
     exit 2
 }
 
+OSNAME="$(uname -s)"
+case "$OSNAME" in
+    # Linux*)
+        # machine=Linux
+        # ;;
+    # Darwin*)
+        # machine=Mac
+        # ;;
+    CYGWIN*)
+        ulimit -n 1024
+        ;;
+    # MINGW*)
+        # machine=MinGw
+        # ;;
+    *)
+        ;;
+esac
+
 DRY=
 GNUPG_PATH=
 INPUT_PATH=
