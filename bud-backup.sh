@@ -6,14 +6,14 @@ usage()
     echo '  -f: force a full backup'
     echo '  -d: dry run'
     echo '  -g: path to .gnupg'
-    echo '  -i: input path or preset'
+    echo '  -i: input path'
     exit 2
 }
 
 FULL=
 DRY=
-INPUT_PATH=
 GNUPG_PATH=
+INPUT_PATH=
 while getopts ":fdg:i:" option; do
     case "${option}" in
         f)
@@ -35,16 +35,16 @@ while getopts ":fdg:i:" option; do
 done
 shift $((OPTIND-1))
 
-OPTIONS=
-
-if [[ -z $INPUT_PATH ]]; then
-    echo 'input path is empty !'
-    usage
-fi
 if [[ -z $GNUPG_PATH ]]; then
     echo 'gnupg path is empty !'
     usage
 fi
+if [[ -z $INPUT_PATH ]]; then
+    echo 'input path is empty !'
+    usage
+fi
+
+OPTIONS=
 
 case $INPUT_PATH in
     'sagittarius-mike') 
@@ -77,6 +77,7 @@ case $INPUT_PATH in
         ulimit -n 1024
         ;;
     *)
+        OUTPUT_PATH="./$INPUT_PATH"
         ;;
 esac
 
@@ -98,7 +99,7 @@ if [[ ! -d "$OUTPUT_PATH" ]]; then
     echo 'Is it a first backup ?'
 fi
 
-OPTIONS_GPG="--homedir $GNUPG_PATH"
+OPTIONS_GPG="--homedir=$GNUPG_PATH"
 
 read -p "Is it ok ? (y/n): " -r
 if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
@@ -106,7 +107,7 @@ if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
 fi
 
 echo 'Start stuff...'
-duplicity $FULL $DRY --progress --gpg-options='"$OPTIONS_GPG"' $OPTIONS \
+duplicity $FULL $DRY --progress --gpg-options "$OPTIONS_GPG" $OPTIONS \
             --encrypt-key 0DA52AFF --sign-key 62C590C4 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
