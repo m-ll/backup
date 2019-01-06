@@ -2,9 +2,10 @@
 
 usage()
 {
-    echo "Usage: $0 [-f] [-d] -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-videos | sagittarius-images | virgo-mike | virgo-family"
+    echo "Usage: $0 [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-videos | sagittarius-images | virgo-mike | virgo-family"
     echo '  -f: force a full backup'
     echo '  -d: dry run'
+    echo '  -g: path to .gnupg'
     echo '  -i: input path or preset'
     exit 2
 }
@@ -12,13 +13,17 @@ usage()
 FULL=
 DRY=
 INPUT_PATH=
-while getopts ":fdi:o:p:" option; do
+GNUPG_PATH=
+while getopts ":fdg:i:" option; do
     case "${option}" in
         f)
             FULL='full'
             ;;
         d)
             DRY='--dry-run'
+            ;;
+        g)
+            GNUPG_PATH=${OPTARG}
             ;;
         i)
             INPUT_PATH=${OPTARG}
@@ -32,7 +37,14 @@ shift $((OPTIND-1))
 
 OPTIONS=
 
-[[ -z $INPUT_PATH ]] && usage
+if [[ -z $INPUT_PATH ]]; then
+    echo 'input path is empty !'
+    usage
+fi
+if [[ -z $GNUPG_PATH ]]; then
+    echo 'gnupg path is empty !'
+    usage
+fi
 
 case $INPUT_PATH in
     'sagittarius-mike') 
@@ -56,42 +68,53 @@ case $INPUT_PATH in
         INPUT_PATH=/cygdrive/d/Users/Mike
         OUTPUT_PATH="./$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Mike/AppData/Local'
+        ulimit -n 1024
         ;;
     'virgo-family') 
         INPUT_PATH=/cygdrive/d/Users/Family
         OUTPUT_PATH="./$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Family/AppData/Local'
+        ulimit -n 1024
         ;;
     *)
         ;;
 esac
 
+echo '.gnupg path: '$GNUPG_PATH
+if [[ ! -d "$GNUPG_PATH" ]]; then
+    echo 'The .gnupg path does not exist !'
+    exit 7
+fi
+
 echo 'input path: '$INPUT_PATH
-if [[ ! -d $INPUT_PATH ]]; then
+if [[ ! -d "$INPUT_PATH" ]]; then
     echo 'The input path does not exist !'
     exit 5
 fi
 
 echo 'output path: '$OUTPUT_PATH
-if [[ ! -d $OUTPUT_PATH ]]; then
+if [[ ! -d "$OUTPUT_PATH" ]]; then
     echo 'The output path does not exist.'
     echo 'Is it a first backup ?'
 fi
 
+OPTIONS_GPG="--homedir $GNUPG_PATH"
+
 read -p "Is it ok ? (y/n): " -r
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
 echo 'Start stuff...'
-duplicity $FULL $DRY --progress $OPTIONS \
+duplicity $FULL $DRY --progress --gpg-options='"$OPTIONS_GPG"' $OPTIONS \
             --encrypt-key 0DA52AFF --sign-key 62C590C4 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
 
-# to restore
-# duplicity "file://$INPUT_PATH" "$OUTPUT_PATH"
-
-echo
-echo 'REMOVE the .gnupg directory !!!'
-echo
+read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+    read -p "Really ($GNUPG_PATH) ? (y/n): " -r
+    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+        rm -r $GNUPG_PATH
+    fi
+fi
