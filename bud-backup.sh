@@ -2,7 +2,7 @@
 
 usage()
 {
-    echo "Usage: $0 [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-videos | sagittarius-images | virgo-mike | virgo-family"
+    echo "Usage: $0 [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-video | sagittarius-music | sagittarius-photo | virgo-mike | virgo-family"
     echo '  -f: force a full backup'
     echo '  -d: dry run'
     echo '  -g: path to .gnupg'
@@ -72,16 +72,22 @@ case $INPUT_PATH in
     'sagittarius-family') 
         INPUT_PATH=/home/family
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
-        OPTIONS='--exclude /home/family/Vidéos --exclude /home/family/Images'
-        ;;
-    'sagittarius-videos') 
+        OPTIONS='--exclude /home/family/Vidéos --exclude /home/family/Images --exclude /home/family/Musique --exclude /home/family/.cache --exclude /home/family/.macromedia'
+        ;;                                                                                                                                # .macromedia + .local = infinite loop
+        
+    'sagittarius-video') 
         INPUT_PATH=/home/family/Vidéos
-        OUTPUT_PATH="$(pwd)/videos"
+        OUTPUT_PATH="$(pwd)/nas/video"
         ;;
-    'sagittarius-images') 
+    'sagittarius-photo') 
         INPUT_PATH=/home/family/Images
-        OUTPUT_PATH="$(pwd)/images"
+        OUTPUT_PATH="$(pwd)/nas/photo"
         ;;
+    'sagittarius-music') 
+        INPUT_PATH=/home/family/Musique
+        OUTPUT_PATH="$(pwd)/nas/music"
+        ;;
+        
     'virgo-mike') 
         INPUT_PATH=/cygdrive/d/Users/Mike
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
@@ -123,7 +129,7 @@ if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
 fi
 
 echo 'Start stuff...'
-duplicity $FULL $DRY --volsize 2000 --progress --gpg-options "$OPTIONS_GPG" $OPTIONS \
+duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-options "$OPTIONS_GPG" $OPTIONS \
             --encrypt-key 0DA52AFF --sign-key 62C590C4 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
