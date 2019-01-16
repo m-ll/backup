@@ -11,7 +11,8 @@
 
 usage()
 {
-    echo "Usage: $0 [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-video | sagittarius-music | sagittarius-photo | virgo-mike | virgo-family"
+    echo "Usage: $0 [-h] [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-video | sagittarius-music | sagittarius-photo | virgo-mike | virgo-family"
+    echo '  -h: help me'
     echo '  -f: force a full backup'
     echo '  -d: dry run'
     echo '  -g: path to .gnupg'
@@ -32,7 +33,7 @@ FULL=
 DRY=
 GNUPG_PATH=
 INPUT_PATH=
-while getopts ":fdg:i:" option; do
+while getopts ":hfdg:i:" option; do
     case "${option}" in
         f)
             FULL='full'
@@ -46,7 +47,7 @@ while getopts ":fdg:i:" option; do
         i)
             INPUT_PATH=${OPTARG}
             ;;
-        *)
+        h|*)
             usage
             ;;
     esac

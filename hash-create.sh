@@ -9,14 +9,47 @@
 # 29c355784a3921aa290371da87bce9c1617b8584ca6ac6fb17fb37ba4a07d191
 #
 
-root=$(dirname "$0")
-$root/hash-check.sh
-error=$?
-if [[ $error -ne 0 ]]; then
-    exit $error
+usage()
+{
+	echo "Usage: $0 [-h] [-f] directory..."
+	echo '  -h: help me'
+	echo '  -f: force overwriting exsting hash file'
+	echo '  directory...: directories to compute hash (default should be: cygdrive home nas)'
+    exit 2
+}
+
+force=0
+while getopts ":hf" option; do
+    case "${option}" in
+        f)
+            force=1
+            ;;
+        h|*)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [[ x"$@" == x ]]; then
+	usage
 fi
 
-echo
-echo "Create new hashes ..."
-now=$(date '+%Y%m%d-%H%M%S')
-find cygdrive home nas -type f -exec sha512sum "{}" \; > $now.sha512
+#---
+
+echo "Create new hashes for: $@..."
+
+for dir in "$@"; do 
+	find "$dir" -type f ! -iname "*.sha512" -print0 | 
+	while IFS= read -r -d $'\0' file; do 
+		file_hash="$file.sha512"
+		
+		if [[ -f "$file_hash" && $force -ne 1 ]]; then
+			echo "  Skip: hash file ($file_hash) already exist."
+			continue
+		fi
+
+		echo "  Process: $file..."
+		sha512sum "$file" > "$file_hash"
+	done
+done

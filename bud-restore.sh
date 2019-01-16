@@ -11,7 +11,8 @@
 
 usage()
 {
-    echo "Usage: $0 [-d] -g /path/to/the/.gnupg/path -i /input/path -o /output/path"
+    echo "Usage: $0 [-h] [-d] -g /path/to/the/.gnupg/path -i /input/path -o /output/path"
+    echo '  -h: help me'
     echo '  -d: dry run'
     echo '  -g: path to .gnupg'
     echo '  -i: input path'
@@ -41,7 +42,7 @@ DRY=
 GNUPG_PATH=
 INPUT_PATH=
 OUTPUT_PATH=
-while getopts ":dg:i:o:" option; do
+while getopts ":hdg:i:o:" option; do
     case "${option}" in
         d)
             DRY='--dry-run'
@@ -55,7 +56,7 @@ while getopts ":dg:i:o:" option; do
         o)
             OUTPUT_PATH=${OPTARG}
             ;;
-        *)
+        h|*)
             usage
             ;;
     esac

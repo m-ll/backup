@@ -9,14 +9,38 @@
 # 29c355784a3921aa290371da87bce9c1617b8584ca6ac6fb17fb37ba4a07d191
 #
 
-for f in *.sha512; do
-    [ -e "$f" ] || exit 0
+usage()
+{
+	echo "Usage: $0 [-h] directory..."
+	echo '  -h: help me'
+	echo '  directory...: directories to check hash (default should be: cygdrive home nas)'
+	exit 2
+}
+
+while getopts ":h" option; do
+    case "${option}" in
+        h|*)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [[ x"$@" == x ]]; then
+	usage
+fi
+
+#---
+
+echo "Check hashes for: $@..."
+
+for dir in "$@"; do 
+	find "$dir" -type f -iname "*.sha512" -print0 | 
+	while IFS= read -r -d $'\0' file_hash; do 
+		echo "  Check: $file_hash..."
+		sha512sum --quiet --check "$file_hash"
+	done
 done
 
-last_sha512sums=$(ls *.sha512 | sort | tail -n 1)
 
-echo "Check: $last_sha512sums ..."
-sha512sum --quiet --check $last_sha512sums
-error=$?
 
-exit $error
