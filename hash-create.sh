@@ -18,6 +18,11 @@ usage()
     exit 2
 }
 
+now()
+{
+	date '+%H:%M:%S'
+}
+
 force=0
 while getopts ":hf" option; do
     case "${option}" in
@@ -44,12 +49,15 @@ for dir in "$@"; do
 	while IFS= read -r -d $'\0' file; do 
 		file_hash="$file.sha512"
 		
-		if [[ -f "$file_hash" && $force -ne 1 ]]; then
-			echo "  Skip: hash file ($file_hash) already exist."
-			continue
+		if [[ -s "$file_hash" ]]; then
+			if [[ $force -eq 0 ]]; then
+				echo "  [$(now)] Skip: hash file ($file_hash) already exist."
+				continue
+			fi
 		fi
 
-		echo "  Process: $file..."
+		echo "  [$(now)] Process: $file..."
 		sha512sum "$file" > "$file_hash"
+		chmod 777 "$file_hash"
 	done
 done

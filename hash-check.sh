@@ -17,6 +17,11 @@ usage()
 	exit 2
 }
 
+now()
+{
+	date '+%H:%M:%S'
+}
+
 while getopts ":h" option; do
     case "${option}" in
         h|*)
@@ -37,7 +42,7 @@ echo "Check hashes for: $@..."
 for dir in "$@"; do 
 	find "$dir" -type f -iname "*.sha512" -print0 | 
 	while IFS= read -r -d $'\0' file_hash; do 
-		echo "  Check: $file_hash..."
+		echo "  [$(now)] Check: $file_hash..."
 		sha512sum --quiet --check "$file_hash"
 	done
 done

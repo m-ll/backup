@@ -134,6 +134,8 @@ duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-options 
             --encrypt-key 0DA52AFF --sign-key 62C590C4 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
+chmod -R 777 "$OUTPUT_PATH/"*
+
 #---
 
 read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
@@ -143,9 +145,3 @@ if [[ "$REPLY" =~ ^[Yy]$ ]]; then
         rm -r $GNUPG_PATH
     fi
 fi
-
-#---
-
-echo
-echo "Create new hashes: $(dirname "$0")/hash-create.sh"
-echo
