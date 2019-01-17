@@ -1,0 +1,13 @@
+# Misc
+include LICENSE.txt
+include README.rst
+include notes.txt
+
+# Cython
+include unireedsolomon/*.pyx
+
+# Test suite
+recursive-include unireedsolomon/tests *.py
+
+# Documentation
+#recursive-include presentation/ *
