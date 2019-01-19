@@ -12,11 +12,13 @@
 import argparse
 import datetime
 import glob
+import io
 import os
 import re
 import sys
-sys.path.append( os.path.join( os.path.dirname( __file__ ), 'unireedsolomon' ) )
-sys.path.append( os.path.join( os.path.dirname( __file__ ), 'colorama' ) )
+# To use directly those inside the backup directory (but slower as unireedsolomon don't use cython in this case)
+# sys.path.append( os.path.join( os.path.dirname( __file__ ), 'unireedsolomon' ) )
+# sys.path.append( os.path.join( os.path.dirname( __file__ ), 'colorama' ) )
 
 from colorama import init, Fore
 init( autoreset=True )
@@ -124,32 +126,39 @@ for pathfile in pathfiles:
 
 	if args.action == 'create':
 
+		start = datetime.datetime.now()
 		print( '[{}] {} -> {}'.format( now(), src_name, ecc_name ) )
 
 		# with open( src_name, 'rb' ) as src, open( dst_name, 'wb' ) as dst, open( ecc_name, 'wb' ) as ecc:
 		with open( src_name, 'rb' ) as src, open( ecc_name, 'wb' ) as ecc:
-			for chunk in iter( lambda: src.read( message_size ), b'' ):
-				padding = message_size - len( chunk )
-				if padding:
-					chunk = b'\0' * padding + chunk
+			for big_chunk in iter( lambda: src.read( message_size * 4000 ), b'' ):
+				bigchunk = io.BytesIO( big_chunk )
+				for chunk in iter( lambda: bigchunk.read( message_size ), b'' ):
+					padding = message_size - len( chunk )
+					if padding:
+						chunk = b'\0' * padding + chunk
 
-				c = coder.encode_fast( chunk, return_string=False )
-				
-				# If using exp > 8 -> value may be > 255 -> can't store them inside 1 byte
-				# b = bytearray()
-				# for n in c:
-					# b.extend( n.to_bytes( ( n.bit_length() + 7 ) // 8, byteorder='little' ) )
-				# # dst.write( b )
+					c = coder.encode_fast( chunk, return_string=False )
+					
+					# If using exp > 8 -> value may be > 255 -> can't store them inside 1 byte
+					# b = bytearray()
+					# for n in c:
+						# b.extend( n.to_bytes( ( n.bit_length() + 7 ) // 8, byteorder='little' ) )
+					# # dst.write( b )
 
-				b = bytes( c )
-				# dst.write( b[padding:message_size] )
-				ecc.write( b[message_size:] )
+					b = bytes( c )
+					# dst.write( b[padding:message_size] )
+					ecc.write( b[message_size:] )
 
 				print_progress( src.tell(), size_to_process )
-			print() # To go to next line after previous \r
+			print() # To go to next line after last previous \r
+		
+		diff = datetime.datetime.now() - start
+		print( '[{}] time used: {} (at {:.2f} Mo/s)'.format( now(), diff, ( size_to_process / 1000000 ) / diff.total_seconds() ) )
 
 	elif args.action == 'check':
 
+		start = datetime.datetime.now()
 		print( '[{}] {} + {}'.format( now(), src_name, ecc_name ) )
 
 		with open( src_name, 'rb' ) as src, open( ecc_name, 'rb' ) as ecc:
@@ -166,9 +175,12 @@ for pathfile in pathfiles:
 						
 				print_progress( src.tell(), size_to_process )
 			print()
+		
+		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
 			
 	elif args.action == 'fix':
 		
+		start = datetime.datetime.now()
 		print( '[{}] {} + {} -> {}'.format( now(), src_name, ecc_name, fix_name ) )
 
 		with open( src_name, 'rb' ) as src, open( ecc_name, 'rb' ) as ecc, open( fix_name, 'wb' ) as fix:
@@ -185,6 +197,8 @@ for pathfile in pathfiles:
 
 				print_progress( src.tell(), size_to_process )
 			print()
+		
+		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
 
 if args.action == 'check':
 	print()

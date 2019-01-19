@@ -19,7 +19,10 @@ Scripts to backup personal data to an external disk.
 - wait...
 - create hash (if not already exists) for all files (MUST be relative path): `./backup/hash-create.sh ./relative/path/to/hash`
 - wait...
-- create eec (if not already exists) for all files: `./backup/ecc.py create -i ./path/to/ecc`
+- create eec (if not already exists) for all files: 
+  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
+  - go to root directory: `cd ..\..`
+  - execute `python .\backup\ecc.py create -i .\path\to\ecc`
 - wait...
 
 # bud restore
@@ -28,7 +31,10 @@ Scripts to backup personal data to an external disk.
 - go to bud's root: `cd /media/bud`
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- check eec for all files: `./backup/eec.py check -i ./path/to/check`
+- check eec for all files: 
+  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
+  - go to root directory: `cd ..\..`
+  - execute `python .\backup\ecc.py check -i .\path\to\ecc`
 - wait...
 - copy the \*ring.gpg files somewhere (but not on bud): /path/to/gnupg/directory
 - execute `./backup/bud-restore.sh [-d] -g /path/to/gnupg/directory -i /media/bud/path/to/backup -o /path/where/to/restore/backup`
@@ -40,7 +46,10 @@ Scripts to backup personal data to an external disk.
 
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- eec for all files: `./backup/ecc.py {check|fix} -i ./path/or/file/to/check`
+- eec for all files: 
+  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
+  - go to root directory: `cd ..\..`
+  - execute `python .\backup\ecc.py {check|fix} -i .\path\to\ecc`
 - wait...
 
 # examples
@@ -49,10 +58,10 @@ Scripts to backup personal data to an external disk.
 - `cd /cygdrive/f/` # root of bud
 - `./backup/bud-backup.sh -f -g /cygdrive/d/gnupg/ -i /cygdrive/c/backup/portable/`
 - `./backup/hash-create.sh ./cygdrive/c/backup/portable/`
-- `./backup/ecc.py create -i ./cygdrive/c/backup/portable/`
+- `python .\backup\ecc.py create -i .\cygdrive\c\backup\portable\`
 
 ## restore
 - `cd /cygdrive/f/` # root of bud
 - `./backup/hash-check.sh ./cygdrive/c/backup/portable/`
-- `./backup/ecc.py check -i ./cygdrive/c/backup/portable/`
+- `python .\backup\ecc.py check -i .\cygdrive\c\backup\portable\`
 - `./backup/bud-restore.sh -g /cygdrive/d/gnupg/ -i ./cygdrive/c/backup/portable/ -o /cygdrive/c/restored/portable/`
