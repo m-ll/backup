@@ -50,6 +50,16 @@ Everything should be use under Linux or WSL (=Windows Sub Linux)
 - eec for all files: `./backup/ecc.py {check|fix} -i ./path/to/ecc` (or see the [no-dep README](./no-dep/README.md))
 - wait...
 
+# Bud shake
+
+This will copy/paste files at the same place to move the files to another sectors/blocks.
+This should be done every 1/2/3(/?) years.
+
+- plug bud
+- go to bud's root: `cd /media/bud`
+- execute `./backup/shake.sh ./path/to/shake`
+- (and maybe make a hash check)
+
 # Examples
 
 ## Backup
