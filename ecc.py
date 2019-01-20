@@ -49,10 +49,19 @@ class cEcc:
 	def __repr__( self ):
 		return f'input: {self.mFileInput} | ecc: {self.mEcc} | fix: {self.mFix}'
 	
-	def IsValidInput( self ):
+	def IsValidInput( self, iLimitSize ):
 		if not os.path.isfile( self.mFileInput ):
 			return False
-		return not( re.search( r'\.regenerated$', self.mFileInput ) or re.search( r'\.ecc(-.+)+$', self.mFileInput ) )
+
+		if os.path.getsize( self.mFileInput ) > iLimitSize * 1000000:
+			return False
+		
+		root, ext = os.path.splitext( self.mFileInput )
+		if ext != '.gpg':
+			return False
+		
+		return True
+		# return not( re.search( r'\.regenerated$', self.mFileInput ) or re.search( r'\.ecc(-.+)+$', self.mFileInput ) )
 	
 	def Init( self, iResultSize, iMessageSize, iExp ):
 		self.mFileEcc = f'{self.mFileInput}.ecc-{iResultSize}-{iMessageSize}-{iExp}'
@@ -168,6 +177,7 @@ class cEcc:
 parser = argparse.ArgumentParser()
 parser.add_argument( 'action', choices=['create', 'check', 'fix'], help='The action to process' )
 parser.add_argument( '-i', '--input', required=True, help='The input file' )
+parser.add_argument( '-l', '--limit', type=int, default=100, help='Process only files below this limit size (Mo)' )
 args = parser.parse_args()
 
 #---
@@ -200,14 +210,14 @@ eccs = []
 
 if os.path.isfile( args.input ):
 	ecc = cEcc( args.input )
-	if ecc.IsValidInput():
+	if ecc.IsValidInput( args.limit ):
 		ecc.Init( result_size, message_size, exp )
 		eccs.append( ecc )
 elif os.path.isdir( args.input ):
 	root = args.input
 	for entry in chain( glob.iglob( root + '**/.*', recursive=True ), glob.iglob( root + '**/*', recursive=True ) ):
 		ecc = cEcc( entry )
-		if ecc.IsValidInput():
+		if ecc.IsValidInput( args.limit ):
 			ecc.Init( result_size, message_size, exp )
 			eccs.append( ecc )
 else:

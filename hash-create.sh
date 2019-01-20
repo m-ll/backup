@@ -42,10 +42,10 @@ fi
 
 #---
 
-echo "Create new hashes for: $@..."
+echo "Create new hashes for *.gpg files inside: $@..."
 
 for dir in "$@"; do 
-	find "$dir" -type f ! -iname "*.sha512" -print0 | 
+	find "$dir" -type f -iname "*.gpg" -print0 | 
 	while IFS= read -r -d $'\0' file; do 
 		file_hash="$file.sha512"
 		
