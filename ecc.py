@@ -215,7 +215,7 @@ if os.path.isfile( args.input ):
 		eccs.append( ecc )
 elif os.path.isdir( args.input ):
 	root = args.input
-	for entry in chain( glob.iglob( root + '**/.*', recursive=True ), glob.iglob( root + '**/*', recursive=True ) ):
+	for entry in chain( glob.iglob( root + '/**/.*', recursive=True ), glob.iglob( root + '/**/*', recursive=True ) ):
 		ecc = cEcc( entry )
 		if ecc.IsValidInput( args.limit ):
 			ecc.Init( result_size, message_size, exp )

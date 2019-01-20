@@ -37,17 +37,17 @@ Everything should be use under Linux or WSL (=Windows Sub Linux)
 - go to bud's root: `cd /media/bud`
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- check eec for all files: `./backup/ecc.py check -i ./path/to/ecc` (OR see the [no-dep README](./no-dep/README.md))
+- check eec for all files: `./backup/ecc.py check -i ./path/to/ecc` (or see the [no-dep README](./no-dep/README.md))
 - wait...
 - copy the \*ring.gpg files somewhere (but not on bud): /path/to/gnupg/directory
-- execute `./backup/bud-restore.sh [-d] -g /path/to/gnupg/directory -i ./path/of/backup -o /path/where/to/restore/backup` (OR see the [no-dep README](./no-dep/README.md))
+- execute `./backup/bud-restore.sh [-d] -g /path/to/gnupg/directory -i ./path/of/backup -o /path/where/to/restore/backup` (or see the [no-dep README](./no-dep/README.md))
 - wait...
 
 # Bud check
 
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- eec for all files: `./backup/ecc.py {check|fix} -i ./path/to/ecc` (OR see the [no-dep README](./no-dep/README.md))
+- eec for all files: `./backup/ecc.py {check|fix} -i ./path/to/ecc` (or see the [no-dep README](./no-dep/README.md))
 - wait...
 
 # Examples
