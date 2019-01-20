@@ -1,15 +1,24 @@
-# backup
+# Backup
 
 Scripts to backup personal data to an external disk.
 
-# bud (BackUp Disk) prepare
+Everything should be use under Linux or WSL (=Windows Sub Linux)
+(even if cygwin should be compatible)
+
+# Requirements (for python scripts)
+
+- Python >= 3.6
+- `pip3 install colorama`
+- `pip3 install unireedsolomon` (to have the cython version)
+
+# Bud (BackUp Disk) prepare
 
 - plug bud
 - go to bud's root: `cd /media/bud`
 - if backup directory doesn't exist: `git clone https://github.com/m-ll/backup.git`
 - OR `git pull backup`
 
-# bud backup
+# Bud backup
 
 - copy the \*ring.gpg files somewhere (but not on bud): /path/to/gnupg/directory
 - plug bud
@@ -19,49 +28,42 @@ Scripts to backup personal data to an external disk.
 - wait...
 - create hash (if not already exists) for all files (MUST be relative path): `./backup/hash-create.sh ./relative/path/to/hash`
 - wait...
-- create eec (if not already exists) for all files: 
-  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
-  - go to root directory: `cd ..\..`
-  - execute `python .\backup\ecc.py create -i .\path\to\ecc`
+- create eec (if not already exists) for all files: `./backup/ecc.py create -i ./path/to/ecc`
 - wait...
 
-# bud restore
+# Bud restore
 
 - plug bud
 - go to bud's root: `cd /media/bud`
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- check eec for all files: 
-  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
-  - go to root directory: `cd ..\..`
-  - execute `python .\backup\ecc.py check -i .\path\to\ecc`
+- check eec for all files: `./backup/ecc.py check -i ./path/to/ecc` (OR see the [no-dep README](./no-dep/README.md))
 - wait...
 - copy the \*ring.gpg files somewhere (but not on bud): /path/to/gnupg/directory
-- execute `./backup/bud-restore.sh [-d] -g /path/to/gnupg/directory -i /media/bud/path/to/backup -o /path/where/to/restore/backup`
+- execute `./backup/bud-restore.sh [-d] -g /path/to/gnupg/directory -i ./path/of/backup -o /path/where/to/restore/backup` (OR see the [no-dep README](./no-dep/README.md))
 - wait...
-- OR if duplicity is not available, execute a no-dependencies gpg on Windows: 
-    `.\backup\gpg4win-x.x.x\bin\gpg.exe --homedir X:\path\to\gnupg\directory -d .\path\to\file\to\decrypt.tar.gpg > X:\path\to\output\decoded\file.tar`
 
-# bud check
+# Bud check
 
 - check hash for all files: `./backup/hash-check.sh ./path/to/check`
 - wait...
-- eec for all files: 
-  - open a windows terminal: .\backup\WPy-3710\WinPython Command Prompt.exe
-  - go to root directory: `cd ..\..`
-  - execute `python .\backup\ecc.py {check|fix} -i .\path\to\ecc`
+- eec for all files: `./backup/ecc.py {check|fix} -i ./path/to/ecc` (OR see the [no-dep README](./no-dep/README.md))
 - wait...
 
-# examples
+# Examples
 
-## backup
-- `cd /cygdrive/f/` # root of bud
-- `./backup/bud-backup.sh -f -g /cygdrive/d/gnupg/ -i /cygdrive/c/backup/portable/`
-- `./backup/hash-create.sh ./cygdrive/c/backup/portable/`
-- `python .\backup\ecc.py create -i .\cygdrive\c\backup\portable\`
+## Backup
+```shell
+cd /mnt/f/ # root of bud
+./backup/bud-backup.sh -f -g /mnt/d/gnupg/ -i /mnt/c/backup/portable/
+./backup/hash-create.sh ./mnt/c/backup/portable/
+./backup/ecc.py create -i ./mnt/c/backup/portable/
+```
 
-## restore
-- `cd /cygdrive/f/` # root of bud
-- `./backup/hash-check.sh ./cygdrive/c/backup/portable/`
-- `python .\backup\ecc.py check -i .\cygdrive\c\backup\portable\`
-- `./backup/bud-restore.sh -g /cygdrive/d/gnupg/ -i ./cygdrive/c/backup/portable/ -o /cygdrive/c/restored/portable/`
+## Restore
+```shell
+cd /mnt/f/ # root of bud
+./backup/hash-check.sh ./mnt/c/backup/portable/
+./backup/ecc.py check -i ./mnt/c/backup/portable/
+./backup/bud-restore.sh -g /mnt/d/gnupg/ -i ./mnt/c/backup/portable/ -o /mnt/c/restored/portable/
+```
