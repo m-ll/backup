@@ -45,14 +45,11 @@ for dir in "$@"; do
         subs="$file".substitute
         echo "  [$(now)] $file ->  $subs"
     
-        mv "$file" "$subs"
-        cp "$subs" "$file"
+        mv "$file" "$subs" && cp "$subs" "$file" && rm "$subs"
 
         # diff "$subs" "$file"
         # if [[ $? -ne 0 ]]; then
         #     break
         # fi
-
-        rm "$subs"
 	done
 done
