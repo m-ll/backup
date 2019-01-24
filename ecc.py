@@ -91,9 +91,10 @@ class cEcc:
 
 		# with open( self.mFileInput, 'rb' ) as src, open( dst_name, 'wb' ) as dst, open( self.mFileEcc, 'wb' ) as ecc:
 		with open( self.mFileInput, 'rb' ) as src, open( self.mFileEcc, 'wb' ) as ecc:
-			for big_chunk in iter( lambda: src.read( self.mSizeMessage * 4000 ), b'' ):
-				big_chunk_file = io.BytesIO( big_chunk )
-				for chunk in iter( lambda: big_chunk_file.read( self.mSizeMessage ), b'' ):
+			for big_chunk_in in iter( lambda: src.read( self.mSizeMessage * 4000 ), b'' ):
+				big_chunk_in_as_file = io.BytesIO( big_chunk_in )
+				big_chunk_out_as_file = io.BytesIO()
+				for chunk in iter( lambda: big_chunk_in_as_file.read( self.mSizeMessage ), b'' ):
 					padding = self.mSizeMessage - len( chunk )
 					if padding:
 						chunk = b'\0' * padding + chunk
@@ -106,9 +107,11 @@ class cEcc:
 						# b.extend( n.to_bytes( ( n.bit_length() + 7 ) // 8, byteorder='little' ) )
 					# # dst.write( b )
 
-					b = bytes( c )
-					# dst.write( b[padding:self.mSizeMessage] )
-					ecc.write( b[self.mSizeMessage:] )
+					message_and_ecc = bytes( c )
+					ecc_only = message_and_ecc[self.mSizeMessage:]
+					big_chunk_out_as_file.write( ecc_only )
+
+				ecc.write( big_chunk_out_as_file.getvalue() )
 
 				print_progress( src.tell(), size_to_process )
 			print() # To go to next line after the last previous \r
