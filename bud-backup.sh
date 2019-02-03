@@ -11,10 +11,16 @@
 
 usage()
 {
-    echo "Usage: $0 [-h] [-f] [-d] -g /path/to/the/.gnupg/path -i /input/path | sagittarius-mike | sagittarius-family | sagittarius-video | sagittarius-music | sagittarius-photo | virgo-mike | virgo-family"
+    echo "Usage: $0 [-h] [-f] [-d] -k {yes|no|ask} -g /path/to/the/.gnupg/path -i /input/path | \
+sagittarius-mike | sagittarius-family | \
+sagittarius-video | sagittarius-music | sagittarius-photo | \
+virgo-cyg-mike | virgo-cyg-family | \
+virgo-wsl-mike | virgo-wsl-family \
+virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     echo '  -h: help me'
     echo '  -f: force a full backup'
     echo '  -d: dry run'
+    echo '  -k: keep .gnupg files'
     echo '  -g: path to .gnupg'
     echo '  -i: input path'
     exit 2
@@ -31,15 +37,19 @@ esac
 
 FULL=
 DRY=
+KEEP_GNUPG=
 GNUPG_PATH=
 INPUT_PATH=
-while getopts ":hfdg:i:" option; do
+while getopts ":hfdk:g:i:" option; do
     case "${option}" in
         f)
             FULL='full'
             ;;
         d)
             DRY='--dry-run'
+            ;;
+        k)
+            KEEP_GNUPG=${OPTARG}
             ;;
         g)
             GNUPG_PATH=${OPTARG}
@@ -54,6 +64,14 @@ while getopts ":hfdg:i:" option; do
 done
 shift $((OPTIND-1))
 
+if [[ -z $KEEP_GNUPG ]]; then
+    echo 'keep gnupg is empty !'
+    usage
+fi
+if [[ x"$KEEP_GNUPG" != x'yes' && x"$KEEP_GNUPG" != x'no' && x"$KEEP_GNUPG" != x'ask' ]]; then
+    echo 'wrong keep argument !'
+    usage
+fi
 if [[ -z $GNUPG_PATH ]]; then
     echo 'gnupg path is empty !'
     usage
@@ -89,15 +107,39 @@ case $INPUT_PATH in
         OUTPUT_PATH="$(pwd)/nas/music"
         ;;
         
-    'virgo-mike') 
+    'virgo-cyg-mike') 
         INPUT_PATH=/cygdrive/d/Users/Mike
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Mike/AppData/Local'
         ;;
-    'virgo-family') 
+    'virgo-cyg-family') 
         INPUT_PATH=/cygdrive/d/Users/Family
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /cygdrive/d/Users/Family/AppData/Local'
+        ;;
+        
+    'virgo-wsl-mike') 
+        INPUT_PATH=/mnt/d/Users/Mike
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
+        OPTIONS='--exclude /mnt/d/Users/Mike/AppData/Local'
+        ;;
+    'virgo-wsl-family') 
+        INPUT_PATH=/mnt/d/Users/Family
+        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
+        OPTIONS='--exclude /mnt/d/Users/Family/AppData/Local'
+        ;;
+        
+    'virgo-wsl-video') 
+        INPUT_PATH=/mnt/d/Video
+        OUTPUT_PATH="$(pwd)/nas/video"
+        ;;
+    'virgo-wsl-photo') 
+        INPUT_PATH=/mnt/d/Photo
+        OUTPUT_PATH="$(pwd)/nas/photo"
+        ;;
+    'virgo-wsl-music') 
+        INPUT_PATH=/mnt/d/Music
+        OUTPUT_PATH="$(pwd)/nas/music"
         ;;
     *)
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
@@ -138,10 +180,19 @@ chmod -R 777 "$OUTPUT_PATH/"*
 
 #---
 
-read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
-if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-    read -p "Really ($GNUPG_PATH) ? (y/n): " -r
+if [[ $KEEP_GNUPG == 'ask' ]]; then
+    read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
     if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        rm -r $GNUPG_PATH
+        read -p "Really ($GNUPG_PATH) ? (y/n): " -r
+        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+            rm -r $GNUPG_PATH
+        fi
     fi
+elif [[ $KEEP_GNUPG == 'yes' ]]; then
+    echo '.gnupg folder still here, think to remove it when finished'
+    echo
+elif [[ $KEEP_GNUPG == 'no' ]]; then
+    rm -r $GNUPG_PATH
+    echo '.gnupg folder has been removed'
+    echo
 fi
