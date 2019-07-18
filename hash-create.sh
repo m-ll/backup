@@ -13,8 +13,10 @@ usage()
 {
 	echo "Usage: $0 [-h] [-f] directory..."
 	echo '  -h: help me'
-	echo '  -f: force overwriting exsting hash file'
-	echo '  directory...: directories to compute hash (default should be: cygdrive home nas)'
+	echo '  -f: force overwriting existing hash file'
+	echo '  directory...: directories to compute hash (default should be: mnt home nas)'
+	echo
+	echo '  Output stuff will always be inside ./sha512/'
     exit 2
 }
 
@@ -47,7 +49,7 @@ echo "Create new hashes for *.gpg files inside: $@..."
 for dir in "$@"; do 
 	find "$dir" -type f -iname "*.gpg" -print0 | 
 	while IFS= read -r -d $'\0' file; do 
-		file_hash="$file.sha512"
+		file_hash="sha512/$file.sha512"
 		
 		if [[ -s "$file_hash" ]]; then
 			if [[ $force -eq 0 ]]; then
@@ -57,6 +59,7 @@ for dir in "$@"; do
 		fi
 
 		echo "  [$(now)] Process: $file..."
+		mkdir -p "$(dirname "$file_hash")"
 		sha512sum "$file" > "$file_hash"
 		chmod 777 "$file_hash"
 	done

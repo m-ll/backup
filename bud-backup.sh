@@ -15,7 +15,7 @@ usage()
 sagittarius-mike | sagittarius-family | \
 sagittarius-video | sagittarius-music | sagittarius-photo | \
 virgo-cyg-mike | virgo-cyg-family | \
-virgo-wsl-mike | virgo-wsl-family \
+virgo-wsl-mike | virgo-wsl-family | \
 virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     echo '  -h: help me'
     echo '  -f: force a full backup'

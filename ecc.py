@@ -11,11 +11,8 @@
 
 import argparse
 import datetime
-import glob
 import io
-from itertools import chain
-import os
-import re
+from pathlib import Path
 import sys
 # To use directly those inside the backup directory (but slower as unireedsolomon don't use cython in this case)
 # sys.path.append( os.path.join( os.path.dirname( __file__ ), 'no-dep', 'unireedsolomon' ) )
@@ -47,50 +44,47 @@ class cEcc:
 		self.mThreshold = 0
 	
 	def __repr__( self ):
-		return f'input: {self.mFileInput} | ecc: {self.mEcc} | fix: {self.mFix}'
+		return f'input: {self.mFileInput}\n  ecc: {self.mFileEcc}\n  fix: {self.mFileFix}'
+	
+	#---
 	
 	def IsValidInput( self, iLimitSize ):
-		if not os.path.isfile( self.mFileInput ):
+		if not self.mFileInput.is_file():
 			return False
 
-		if os.path.getsize( self.mFileInput ) > iLimitSize * 1000000:
+		if self.mFileInput.stat().st_size > iLimitSize * 1000000:
 			return False
 		
-		root, ext = os.path.splitext( self.mFileInput )
-		if ext != '.gpg':
+		if self.mFileInput.suffix != '.gpg':
 			return False
 		
 		return True
-		# return not( re.search( r'\.regenerated$', self.mFileInput ) or re.search( r'\.ecc(-.+)+$', self.mFileInput ) )
 	
 	def Init( self, iResultSize, iMessageSize, iExp ):
-		self.mFileEcc = f'{self.mFileInput}.ecc-{iResultSize}-{iMessageSize}-{iExp}'
-		self.mFileFix = f'{self.mFileInput}.regenerated'
+		self.mFileEcc = Path( f'ecc-{iResultSize}-{iMessageSize}-{iExp}' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + f'.ecc-{iResultSize}-{iMessageSize}-{iExp}' )
+		self.mFileFix = Path( 'ecc-regenerated' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + '.regenerated' )
 
 		self.mSizeResult = iResultSize
 		self.mSizeMessage = iMessageSize
 		self.mCorrectionThreshold = iResultSize - iMessageSize
 		self.mExp = iExp
 	
-	def FileInput( self ):
-		return self.mFileInput
-	def FileEcc( self ):
-		return self.mFileEcc
-	def FileFix( self ):
-		return self.mFileFix
-
+	#---
+	
 	def ProcessCreate( self, iCoder ):
-		size_to_process = os.path.getsize( self.mFileInput )
+		size_to_process = self.mFileInput.stat().st_size
 		
-		if os.path.isfile( self.mFileEcc ):
+		if self.mFileEcc.is_file():
 			print( Fore.CYAN + 'Skip: ecc file already exists: {}'.format( self.mFileEcc ) )
 			return
 
 		start = datetime.datetime.now()
 		print( '[{}] {} -> {}'.format( now(), self.mFileInput, self.mFileEcc ) )
 
-		# with open( self.mFileInput, 'rb' ) as src, open( dst_name, 'wb' ) as dst, open( self.mFileEcc, 'wb' ) as ecc:
-		with open( self.mFileInput, 'rb' ) as src, open( self.mFileEcc, 'wb' ) as ecc:
+		self.mFileEcc.parent.mkdir( parents=True, exist_ok=True )
+
+		# with self.mFileInput.open( 'rb' ) as src, open( dst_name, 'wb' ) as dst, self.mFileEcc.open( 'wb' ) as ecc:
+		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'wb' ) as ecc:
 			for big_chunk_in in iter( lambda: src.read( self.mSizeMessage * 4000 ), b'' ):
 				big_chunk_in_as_file = io.BytesIO( big_chunk_in )
 				big_chunk_out_as_file = io.BytesIO()
@@ -116,21 +110,21 @@ class cEcc:
 				print_progress( src.tell(), size_to_process )
 			print() # To go to next line after the last previous \r
 
-		os.chmod( self.mFileEcc, 0o777 )
+		self.mFileEcc.chmod( 0o777 )
 		diff = datetime.datetime.now() - start
 		print( '[{}] time used: {} (at {:.2f} Mo/s)'.format( now(), diff, ( size_to_process / 1000000 ) / diff.total_seconds() ) )
 		
 	def ProcessCheck( self, iCoder ):
-		size_to_process = os.path.getsize( self.mFileInput )
+		size_to_process = self.mFileInput.stat().st_size
 
-		if not os.path.isfile( self.mFileEcc ):
+		if not self.mFileEcc.is_file():
 			print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
 			return
 
 		start = datetime.datetime.now()
 		print( '[{}] {}, {}'.format( now(), self.mFileInput, self.mFileEcc ) )
 
-		with open( self.mFileInput, 'rb' ) as src, open( self.mFileEcc, 'rb' ) as ecc:
+		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'rb' ) as ecc:
 			for src_chunk, ecc_chunk in zip( iter( lambda: src.read( self.mSizeMessage ), b'' ), iter( lambda: ecc.read( self.mCorrectionThreshold ), b'' ) ):
 				padding = self.mSizeMessage - len( src_chunk )
 				if padding:
@@ -148,16 +142,18 @@ class cEcc:
 		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
 			
 	def ProcessFix( self, iCoder ):
-		size_to_process = os.path.getsize( self.mFileInput )
+		size_to_process = self.mFileInput.stat().st_size
 
-		if not os.path.isfile( self.mFileEcc ):
+		if not self.mFileEcc.is_file():
 			print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
 			return
 
 		start = datetime.datetime.now()
 		print( '[{}] {}, {} -> {}'.format( now(), self.mFileInput, self.mFileEcc, self.mFileFix ) )
 
-		with open( self.mFileInput, 'rb' ) as src, open( self.mFileEcc, 'rb' ) as ecc, open( self.mFileFix, 'wb' ) as fix:
+		self.mFileFix.parent.mkdir( parents=True, exist_ok=True )
+
+		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'rb' ) as ecc, self.mFileFix.open( 'wb' ) as fix:
 			for src_chunk, ecc_chunk in zip( iter( lambda: src.read( self.mSizeMessage ), b'' ), iter( lambda: ecc.read( self.mCorrectionThreshold ), b'' ) ):
 				padding = self.mSizeMessage - len( src_chunk )
 				if padding:
@@ -172,7 +168,7 @@ class cEcc:
 				print_progress( src.tell(), size_to_process )
 			print()
 
-		os.chmod( self.mFileFix, 0o777 )
+		self.mFileFix.chmod( 0o777 )
 		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
 
 #---
@@ -211,14 +207,15 @@ coder = unireedsolomon.rs.RSCoder( result_size, message_size, prim=prim, c_exp=e
 
 eccs = []
 
-if os.path.isfile( args.input ):
-	ecc = cEcc( args.input )
+input = Path( args.input )
+
+if input.is_file():
+	ecc = cEcc( input )
 	if ecc.IsValidInput( args.limit ):
 		ecc.Init( result_size, message_size, exp )
 		eccs.append( ecc )
-elif os.path.isdir( args.input ):
-	root = args.input
-	for entry in chain( glob.iglob( root + '/**/.*', recursive=True ), glob.iglob( root + '/**/*', recursive=True ) ):
+elif input.is_dir():
+	for entry in input.rglob( '*' ):
 		ecc = cEcc( entry )
 		if ecc.IsValidInput( args.limit ):
 			ecc.Init( result_size, message_size, exp )

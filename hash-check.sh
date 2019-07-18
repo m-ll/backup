@@ -13,7 +13,7 @@ usage()
 {
 	echo "Usage: $0 [-h] directory..."
 	echo '  -h: help me'
-	echo '  directory...: directories to check hash (default should be: cygdrive home nas)'
+	echo '  directory...: directories to check hash (default should be: mnt home nas)'
 	exit 2
 }
 
@@ -40,7 +40,7 @@ fi
 echo "Check hashes for: $@..."
 
 for dir in "$@"; do 
-	find "$dir" -type f -iname "*.sha512" -print0 | 
+	find "sha512/$dir" -type f -iname "*.sha512" -print0 | 
 	while IFS= read -r -d $'\0' file_hash; do 
 		echo "  [$(now)] Check: $file_hash..."
 		sha512sum --quiet --check "$file_hash"
