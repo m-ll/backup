@@ -65,14 +65,14 @@ input = Path( args.input )
 
 if input.is_file():
 	ecc = cEcc( input )
-	if ecc.IsValidInput( args.limit ):
-		ecc.Init( result_size, message_size, exp )
+	if ecc.IsValidInput():
+		ecc.Init( args.limit, result_size, message_size, exp )
 		eccs.append( ecc )
 elif input.is_dir():
 	for entry in input.rglob( '*' ):
 		ecc = cEcc( entry )
-		if ecc.IsValidInput( args.limit ):
-			ecc.Init( result_size, message_size, exp )
+		if ecc.IsValidInput():
+			ecc.Init( args.limit, result_size, message_size, exp )
 			eccs.append( ecc )
 else:
 	print( Fore.RED + 'The input file doesn\'t exist: {}'.format( args.input ) )

@@ -42,6 +42,7 @@ class cEcc:
 	#
 	#  @param  iFileInput  pathlib.Path  The input file
 	def __init__( self, iFileInput ):
+		self.mLimitSize = 0
 		self.mFileInput = iFileInput
 		self.mFileEcc = '' # Contains only the ecc data
 		self.mFileFix = ''
@@ -61,26 +62,33 @@ class cEcc:
 	
 	## Check if the input file is valid for managing its ecc file
 	#
-	#  @param  iLimitSize  int   The maximum file size to be able to process the file
 	#  @return             bool  The input file can be process or not
-	def IsValidInput( self, iLimitSize ):
+	def IsValidInput( self ):
 		if not self.mFileInput.is_file():
 			return False
 
-		if self.mFileInput.stat().st_size > iLimitSize * 1000000:
+		if self.mFileInput.suffix != '.gpg':
 			return False
 		
-		if self.mFileInput.suffix != '.gpg':
+		return True
+	
+	## Check if the input file is not too big for managing its ecc file
+	#
+	#  @return             bool  The input file can be process or not
+	def _IsValidInputSize( self ):
+		if self.mFileInput.stat().st_size > self.mLimitSize * 1000000:
 			return False
 		
 		return True
 	
 	## Initialize data for processing the input file
 	#
+	#  @param  iLimitSize    int  The limit size (in Mo) of the input file (otherwise the process is too slow)
 	#  @param  iResultSize   int  The result size
 	#  @param  iMessageSize  int  The message size
 	#  @param  iExp          int  The exp
-	def Init( self, iResultSize, iMessageSize, iExp ):
+	def Init( self, iLimitSize, iResultSize, iMessageSize, iExp ):
+		self.mLimitSize = iLimitSize
 		self.mFileEcc = Path( f'ecc-{iResultSize}-{iMessageSize}-{iExp}' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + f'.ecc-{iResultSize}-{iMessageSize}-{iExp}' )
 		self.mFileFix = Path( 'ecc-regenerated' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + '.regenerated' )
 
@@ -100,7 +108,10 @@ class cEcc:
 		if self.mFileEcc.is_file():
 			print( Fore.CYAN + 'Skip: ecc file already exists: {}'.format( self.mFileEcc ) )
 			return
-
+		if not self._IsValidInputSize():
+			print( Fore.RED + 'Skip: file too big: {:5} Mo - {}'.format( self.mFileInput.stat().st_size // 1000000, self.mFileInput ) )
+			return
+		
 		start = datetime.datetime.now()
 		print( '[{}] {} -> {}'.format( now(), self.mFileInput, self.mFileEcc ) )
 
