@@ -22,6 +22,7 @@ now()
 	date '+%H:%M:%S'
 }
 
+# Process all the parameters
 while getopts ":h" option; do
     case "${option}" in
         h|*)
@@ -31,6 +32,7 @@ while getopts ":h" option; do
 done
 shift $((OPTIND-1))
 
+# At least, one directory to check must be set
 if [[ x"$@" == x ]]; then
 	usage
 fi
@@ -39,7 +41,9 @@ fi
 
 echo "Check hashes for: $@..."
 
+# For each directory given
 for dir in "$@"; do 
+	# Find every .sha512 files inside the ./sha512/ directory and loop over each
 	find "sha512/$dir" -type f -iname "*.sha512" -print0 | 
 	while IFS= read -r -d $'\0' file_hash; do 
 		echo "  [$(now)] Check: $file_hash..."

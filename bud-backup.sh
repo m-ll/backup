@@ -14,7 +14,6 @@ usage()
     echo "Usage: $0 [-h] [-f] [-d] -k {yes|no|ask} -g /path/to/the/.gnupg/path -i /input/path | \
 sagittarius-mike | sagittarius-family | \
 sagittarius-video | sagittarius-music | sagittarius-photo | \
-virgo-cyg-mike | virgo-cyg-family | \
 virgo-wsl-mike | virgo-wsl-family | \
 virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     echo '  -h: help me'
@@ -26,6 +25,7 @@ virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     exit 2
 }
 
+# Fix for cygwin (but cygwin should not be used anymore, replaced by WSL)
 OSNAME="$(uname -s)"
 case "$OSNAME" in
     # Linux*) ;;
@@ -35,11 +35,18 @@ case "$OSNAME" in
     *) ;;
 esac
 
+# Make a full backup
 FULL=
+# Simulate a backup without changing anything on disk
 DRY=
+# Answer to the last question to keep or not the gnupg directory
 KEEP_GNUPG=
+# The gnupg directory with keys
 GNUPG_PATH=
+# The path to backup
 INPUT_PATH=
+
+# Process all the parameters
 while getopts ":hfdk:g:i:" option; do
     case "${option}" in
         f)
@@ -64,6 +71,8 @@ while getopts ":hfdk:g:i:" option; do
 done
 shift $((OPTIND-1))
 
+# Check all the mandatory parameters
+
 if [[ -z $KEEP_GNUPG ]]; then
     echo 'keep gnupg is empty !'
     usage
@@ -80,6 +89,10 @@ if [[ -z $INPUT_PATH ]]; then
     echo 'input path is empty !'
     usage
 fi
+
+# Fill/Convert some parameters
+# - when the input path is not a real path, convert the 'code' to a real input/output paths
+# - fill the duplicity options for each 'code' (exclude paths/...)
 
 OPTIONS=
 
@@ -146,6 +159,8 @@ case $INPUT_PATH in
         ;;
 esac
 
+# Display all parameters containing a path and check its existence
+
 echo '.gnupg path: '$GNUPG_PATH
 if [[ ! -d "$GNUPG_PATH" ]]; then
     echo 'The .gnupg path does not exist !'
@@ -164,12 +179,15 @@ if [[ ! -d "$OUTPUT_PATH" ]]; then
     echo 'Is it a first backup ?'
 fi
 
-OPTIONS_GPG="--homedir=$GNUPG_PATH"
-
+# Confirm all the paths displayed above
 read -p "Is it ok ? (y/n): " -r
 if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     exit 1
 fi
+
+# Start the backup process
+
+OPTIONS_GPG="--homedir=$GNUPG_PATH"
 
 echo 'Start stuff...'
 duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-options "$OPTIONS_GPG" $OPTIONS \
@@ -179,6 +197,8 @@ duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-options 
 chmod -R 777 "$OUTPUT_PATH/"*
 
 #---
+
+# Ask to keep/remove the gnupg directory
 
 if [[ $KEEP_GNUPG == 'ask' ]]; then
     read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r

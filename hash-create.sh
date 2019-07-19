@@ -25,7 +25,10 @@ now()
 	date '+%H:%M:%S'
 }
 
+# Create the sha512 file even if it already exists
 force=0
+
+# Process all the parameters
 while getopts ":hf" option; do
     case "${option}" in
         f)
@@ -38,6 +41,7 @@ while getopts ":hf" option; do
 done
 shift $((OPTIND-1))
 
+# At least, one directory to hash must be set
 if [[ x"$@" == x ]]; then
 	usage
 fi
@@ -46,11 +50,15 @@ fi
 
 echo "Create new hashes for *.gpg files inside: $@..."
 
+# For each directory given
 for dir in "$@"; do 
+	# Find every .gpg files inside the directory and loop over each
 	find "$dir" -type f -iname "*.gpg" -print0 | 
 	while IFS= read -r -d $'\0' file; do 
+		# All the new .sha512 files will be create inside ./sha512/ directory
 		file_hash="sha512/$file.sha512"
 		
+		# Skip or overwrite the existing .sha512 file
 		if [[ -s "$file_hash" ]]; then
 			if [[ $force -eq 0 ]]; then
 				echo "  [$(now)] Skip: hash file ($file_hash) already exist."

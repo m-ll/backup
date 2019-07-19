@@ -11,7 +11,6 @@
 
 import argparse
 import datetime
-import io
 from pathlib import Path
 import sys
 # To use directly those inside the backup directory (but slower as unireedsolomon don't use cython in this case)
@@ -22,154 +21,7 @@ from colorama import init, Fore
 init( autoreset=True )
 import unireedsolomon
 
-#---
-
-def now():
-	return datetime.datetime.now().time()
-
-def print_progress( iCurrent, iTotal ):
-	print( '[{}]   processed: {:.2f}%'.format( now(), iCurrent / iTotal * 100.0 ), end='\r' )
-
-#---
-
-class cEcc:
-	def __init__( self, iFileInput ):
-		self.mFileInput = iFileInput
-		self.mFileEcc = '' # Contains only the ecc data
-		self.mFileFix = ''
-
-		self.mSizeResult = 0
-		self.mSizeMessage = 0
-		self.mExp = 0
-		self.mThreshold = 0
-	
-	def __repr__( self ):
-		return f'input: {self.mFileInput}\n  ecc: {self.mFileEcc}\n  fix: {self.mFileFix}'
-	
-	#---
-	
-	def IsValidInput( self, iLimitSize ):
-		if not self.mFileInput.is_file():
-			return False
-
-		if self.mFileInput.stat().st_size > iLimitSize * 1000000:
-			return False
-		
-		if self.mFileInput.suffix != '.gpg':
-			return False
-		
-		return True
-	
-	def Init( self, iResultSize, iMessageSize, iExp ):
-		self.mFileEcc = Path( f'ecc-{iResultSize}-{iMessageSize}-{iExp}' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + f'.ecc-{iResultSize}-{iMessageSize}-{iExp}' )
-		self.mFileFix = Path( 'ecc-regenerated' ) / self.mFileInput.with_suffix( self.mFileInput.suffix + '.regenerated' )
-
-		self.mSizeResult = iResultSize
-		self.mSizeMessage = iMessageSize
-		self.mCorrectionThreshold = iResultSize - iMessageSize
-		self.mExp = iExp
-	
-	#---
-	
-	def ProcessCreate( self, iCoder ):
-		size_to_process = self.mFileInput.stat().st_size
-		
-		if self.mFileEcc.is_file():
-			print( Fore.CYAN + 'Skip: ecc file already exists: {}'.format( self.mFileEcc ) )
-			return
-
-		start = datetime.datetime.now()
-		print( '[{}] {} -> {}'.format( now(), self.mFileInput, self.mFileEcc ) )
-
-		self.mFileEcc.parent.mkdir( parents=True, exist_ok=True )
-
-		# with self.mFileInput.open( 'rb' ) as src, open( dst_name, 'wb' ) as dst, self.mFileEcc.open( 'wb' ) as ecc:
-		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'wb' ) as ecc:
-			for big_chunk_in in iter( lambda: src.read( self.mSizeMessage * 4000 ), b'' ):
-				big_chunk_in_as_file = io.BytesIO( big_chunk_in )
-				big_chunk_out_as_file = io.BytesIO()
-				for chunk in iter( lambda: big_chunk_in_as_file.read( self.mSizeMessage ), b'' ):
-					padding = self.mSizeMessage - len( chunk )
-					if padding:
-						chunk = b'\0' * padding + chunk
-
-					c = iCoder.encode_fast( chunk, return_string=False )
-					
-					# If using exp > 8 -> value may be > 255 -> can't store them inside 1 byte
-					# b = bytearray()
-					# for n in c:
-						# b.extend( n.to_bytes( ( n.bit_length() + 7 ) // 8, byteorder='little' ) )
-					# # dst.write( b )
-
-					message_and_ecc = bytes( c )
-					ecc_only = message_and_ecc[self.mSizeMessage:]
-					big_chunk_out_as_file.write( ecc_only )
-
-				ecc.write( big_chunk_out_as_file.getvalue() )
-
-				print_progress( src.tell(), size_to_process )
-			print() # To go to next line after the last previous \r
-
-		self.mFileEcc.chmod( 0o777 )
-		diff = datetime.datetime.now() - start
-		print( '[{}] time used: {} (at {:.2f} Mo/s)'.format( now(), diff, ( size_to_process / 1000000 ) / diff.total_seconds() ) )
-		
-	def ProcessCheck( self, iCoder ):
-		size_to_process = self.mFileInput.stat().st_size
-
-		if not self.mFileEcc.is_file():
-			print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
-			return
-
-		start = datetime.datetime.now()
-		print( '[{}] {}, {}'.format( now(), self.mFileInput, self.mFileEcc ) )
-
-		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'rb' ) as ecc:
-			for src_chunk, ecc_chunk in zip( iter( lambda: src.read( self.mSizeMessage ), b'' ), iter( lambda: ecc.read( self.mCorrectionThreshold ), b'' ) ):
-				padding = self.mSizeMessage - len( src_chunk )
-				if padding:
-					src_chunk = b'\0' * padding + src_chunk
-				chunk = src_chunk + ecc_chunk
-
-				check = iCoder.check_fast( chunk )
-				if not check:
-					print()
-					print( Fore.RED + 'There are errors -_-' )
-						
-				print_progress( src.tell(), size_to_process )
-			print()
-
-		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
-			
-	def ProcessFix( self, iCoder ):
-		size_to_process = self.mFileInput.stat().st_size
-
-		if not self.mFileEcc.is_file():
-			print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
-			return
-
-		start = datetime.datetime.now()
-		print( '[{}] {}, {} -> {}'.format( now(), self.mFileInput, self.mFileEcc, self.mFileFix ) )
-
-		self.mFileFix.parent.mkdir( parents=True, exist_ok=True )
-
-		with self.mFileInput.open( 'rb' ) as src, self.mFileEcc.open( 'rb' ) as ecc, self.mFileFix.open( 'wb' ) as fix:
-			for src_chunk, ecc_chunk in zip( iter( lambda: src.read( self.mSizeMessage ), b'' ), iter( lambda: ecc.read( self.mCorrectionThreshold ), b'' ) ):
-				padding = self.mSizeMessage - len( src_chunk )
-				if padding:
-					src_chunk = b'\0' * padding + src_chunk
-				chunk = src_chunk + ecc_chunk
-
-				d, code = iCoder.decode_fast( chunk, nostrip=True, return_string=False )
-
-				b = bytes( d )
-				fix.write( b[padding:] )
-
-				print_progress( src.tell(), size_to_process )
-			print()
-
-		self.mFileFix.chmod( 0o777 )
-		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
+from ecc.ecc import cEcc
 
 #---
 
@@ -202,6 +54,8 @@ errors = result_size - message_size
 prim = 0x11b
 # prim = unireedsolomon.ff.find_prime_polynomials( c_exp=exp, fast_primes=True, single=True )
 coder = unireedsolomon.rs.RSCoder( result_size, message_size, prim=prim, c_exp=exp )
+
+# The coder is outside the cEcc class, to not recreate it for each file
 
 #---
 
