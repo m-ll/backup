@@ -26,7 +26,7 @@ from ecc.ecc import cEcc
 #---
 
 parser = argparse.ArgumentParser()
-parser.add_argument( 'action', choices=['create', 'check', 'fix'], help='The action to process' )
+parser.add_argument( 'action', choices=['create', 'check', 'check-size', 'fix'], help='The action to process' )
 parser.add_argument( '-i', '--input', required=True, help='The input file' )
 parser.add_argument( '-l', '--limit', type=int, default=100, help='Process only files below this limit size (Mo)' )
 args = parser.parse_args()
@@ -85,6 +85,8 @@ for ecc in eccs:
 		ecc.ProcessCreate( coder )
 	elif args.action == 'check':
 		ecc.ProcessCheck( coder )
+	elif args.action == 'check-size':
+		ecc.ProcessCheckSize( coder )
 	elif args.action == 'fix':
 		ecc.ProcessFix( coder )
 

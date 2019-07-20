@@ -177,7 +177,70 @@ class cEcc:
 			print()
 
 		print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
+	
+	## Check the ecc file size (proportional to the input file size)
+	#
+	#  @param  iCoder  unireedsolomon.rs.RSCoder  The coder
+	#
+	#  @example: with mSizeResult = 255 & mSizeMessage = 223 & size_input = 411
+	#
+	#  block_size_ecc = 32 (=255-223)
+	#  size_ecc = 64 (it's always a multiple of block_size_ecc)
+	#  number_of_block_ecc = 2
+	#  
+	#            3 3        6 6
+	#   0        1 2        3 4
+	#   ---------------------
+	#  |          |          |
+	#   ---------------------
+	#  
+	#                  max_size_input = 446 (=223*2)
+	#   .-------------------------------------------------.
+	#               size_input = 411
+	#   .-------------------------------------.
+	#                                     end_input
+	#                                         |
+	#                           2 2           4           4 4
+	#                           2 2           1           4 4
+	#   0                       2 3           0           5 6
+	#   ------------------------- ------------- -----------
+	#  |                         |             :           |
+	#   ------------------------- ------------- -----------
+	#                             |                       | |
+	#                             |                       | begin_of_next_of_last_block_input
+	#                 begin_of_last_block_input end_of_last_block_input
+	#
+	def ProcessCheckSize( self, iCoder ):
+		size_input = self.mFileInput.stat().st_size
+
+		if not self.mFileEcc.is_file():
+			print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
+			return
 			
+		size_ecc = self.mFileEcc.stat().st_size
+		
+		block_size_ecc = self.mSizeResult - self.mSizeMessage
+		block_size_input = self.mSizeMessage
+
+		number_of_block_ecc, remainder = divmod( size_ecc, block_size_ecc )
+		if remainder:
+			print( Fore.RED + 'The ecc file size {} is not a multiple of {}'.format( size_ecc, block_size_ecc ) )
+			return
+
+		max_size_input = number_of_block_ecc * block_size_input
+
+		#---
+		
+		end_input = size_input - 1
+
+		begin_of_next_of_last_block_input = max_size_input
+		end_of_last_block_input = begin_of_next_of_last_block_input - 1
+		begin_of_last_block_input = begin_of_next_of_last_block_input - block_size_input
+
+		if( end_input < begin_of_last_block_input or end_input > end_of_last_block_input ):
+			print( Fore.RED + 'The input file size {} is not between {} and {}'.format( size_input, begin_of_last_block_input + 1, end_of_last_block_input + 1 ) )
+			return
+	
 	## Fix the input file via its ecc file
 	#
 	#  @param  iCoder  unireedsolomon.rs.RSCoder  The coder
