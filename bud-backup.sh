@@ -143,15 +143,15 @@ case $INPUT_PATH in
         ;;
         
     'virgo-wsl-video') 
-        INPUT_PATH=/mnt/d/Video
+        INPUT_PATH=/mnt/f/Video
         OUTPUT_PATH="$(pwd)/nas/video"
         ;;
     'virgo-wsl-photo') 
-        INPUT_PATH=/mnt/d/Photo
+        INPUT_PATH=/mnt/f/Photo
         OUTPUT_PATH="$(pwd)/nas/photo"
         ;;
     'virgo-wsl-music') 
-        INPUT_PATH=/mnt/d/Music
+        INPUT_PATH=/mnt/f/Music
         OUTPUT_PATH="$(pwd)/nas/music"
         ;;
     *)
