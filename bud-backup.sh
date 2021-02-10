@@ -190,7 +190,7 @@ fi
 OPTIONS_GPG="--homedir=$GNUPG_PATH"
 
 echo 'Start stuff...'
-duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-options "$OPTIONS_GPG" $OPTIONS \
+duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" $OPTIONS \
             --encrypt-key 0DA52AFF --sign-key 62C590C4 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
