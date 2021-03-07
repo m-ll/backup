@@ -122,7 +122,7 @@ namespace schifra
                fec_buffer_[i] = static_cast<char>(block_.fec(i) & 0xFF);
             }
 
-            out_stream.write(&data_buffer_[0],static_cast<std::streamsize>(read_amount));
+            // out_stream.write(&data_buffer_[0],static_cast<std::streamsize>(read_amount));
             out_stream.write(&fec_buffer_[0],fec_length);
          }
 

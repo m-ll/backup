@@ -65,6 +65,11 @@ BUILD_LIST+=schifra_erasure_channel_example02
 BUILD_LIST+=schifra_reed_solomon_gencodec_example
 BUILD_LIST+=schifra_reed_solomon_product_code_example
 
+
+backup: ecc-schifra-255-32-8.cpp $(HPP_SRC)
+	$(COMPILER) $(OPTIONS) -o ../ecc-schifra-255-32-8 ecc-schifra-255-32-8.cpp $(LINKER_OPTS) -pthread -std=c++17
+
+
 # all: $(BUILD_LIST)
 
 $(BUILD_LIST) : %: %.cpp $(HPP_SRC)
