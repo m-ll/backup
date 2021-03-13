@@ -22,6 +22,7 @@
 
 #include <cstring>
 #include <cstddef>
+#include <deque>
 #include <string>
 #include <thread>
 
@@ -58,35 +59,81 @@ int main( int argc, char *argv[] )
     const std::size_t code_length         = 255;
     const std::size_t fec_length          =  32;
 
-    if( argc != 1 + 3 && argc != 1 + 4 )
-    {
-        std::cout << "Error - Bad arguments." << std::endl;
-        std::cout << "./process-ecc {e, encode, d, decode} input-file output-file" << std::endl;
+    std::deque<std::string> args( argv, argv + argc );
+    args.pop_front(); // Remove program path
 
-        return -1;
+    int verbose = 0;
+    std::string input_data_file_name;   // encode + decode
+    std::string output_ecc_file_name;   // encode
+    std::string input_ecc_file_name;    // decode
+    std::string output_data_file_name;  // decode
+
+    std::deque<std::string> args_positional;
+    while( args.size() )
+    {
+        std::string arg = args[0];
+        args.pop_front();
+
+        if( arg == "-v" )
+        {
+            verbose++;
+        }
+        else if( arg == "-i" )
+        {
+            input_data_file_name = args[0];
+            args.pop_front();
+        }
+        else if( arg == "-e" )
+        {
+            input_ecc_file_name = args[0];
+            args.pop_front();
+        }
+        else if( arg == "-o" )
+        {
+            output_ecc_file_name = args[0];
+            output_data_file_name = args[0];
+            args.pop_front();
+        }
+        else
+        {
+            args_positional.push_back( arg );
+        }
     }
 
-    // argv[0] == ./process-ecc
     enum class eAction
     {
         kNone,
         kEncode,
         kDecode,
     };
-    std::string argv1 = argv[1];
-    eAction action = ( argv1 == "e" || argv1 == "encode" )
-                        ?
-                            eAction::kEncode
-                        :
-                            ( argv1 == "d" || argv1 == "decode" )
-                            ?
-                                eAction::kDecode
-                            :
-                                eAction::kNone;
-    std::string input_data_file_name = argv[2];
+    eAction action = eAction::kNone;
 
-    // std::cout << "input: " << input_data_file_name << std::endl;
-    // std::cout << "output: " << output_file_name << std::endl;
+    if( args_positional.size() )
+    {
+        std::string arg = args_positional[0];
+        args_positional.pop_front();
+
+        if( arg == "e" || arg == "encode" )
+            action = eAction::kEncode;
+        if( arg == "d" || arg == "decode" )
+            action = eAction::kDecode;
+    }
+
+    if( args_positional.size() // remaining arguments
+        || action == eAction::kNone 
+        || ( action == eAction::kEncode && ( !input_data_file_name.length() || !output_ecc_file_name.length() ) )
+        || ( action == eAction::kDecode && ( !input_data_file_name.length() || !input_ecc_file_name.length() || !output_data_file_name.length() ) ) )
+    {
+        std::cout << "Error - Bad arguments." << std::endl;
+        std::cout << "./ecc-schifra-255-32-8 [-v] {e, encode} -i input-data-file -o output-ecc-file" << std::endl;
+        std::cout << "./ecc-schifra-255-32-8 [-v] {d, decode} -i input-data-file -e input-ecc-file -o output-datafile" << std::endl;
+        std::cout << std::endl;
+        std::cout << args_positional.size() << std::endl;
+        std::cout << int(action) << " " << input_data_file_name << " " << output_ecc_file_name << std::endl;
+        std::cout << int(action) << " " << input_data_file_name << " " << input_ecc_file_name << " " << output_data_file_name << " " << std::endl;
+
+        return -1;
+    }
 
 //      const unsigned int primitive_polynomial05b[]    = {1, 0, 0, 1, 1, 0, 0, 0, 1};
 //      const unsigned int primitive_polynomial_size05b = 9;
@@ -96,14 +143,19 @@ int main( int argc, char *argv[] )
 
     //---
 
+    //const auto processor_count = std::thread::hardware_concurrency();
+    int nb_big_chunk = 4;
+
     std::size_t full_size = schifra::fileio::file_size( input_data_file_name );
     const std::size_t data_length = code_length - fec_length;
-    std::size_t small_size = full_size / data_length / 4 * data_length;
+    int nb_data_chunk = full_size / data_length; // Number of data chunk (223o) inside input file, doesn't count the last partial one (as integer division) but it's not a problem, it's just have an idea to split for each thread
 
-    std::size_t size1 = small_size;
-    std::size_t size2 = small_size;
-    std::size_t size3 = small_size;
-    std::size_t size4 = full_size - ( size1 + size2 + size3 );
+    int nb_data_chunk_per_big_chunk = nb_data_chunk / nb_big_chunk; // Number of data chunk for each big (thread) chunk
+
+    std::size_t big_chunk_size1 = nb_data_chunk_per_big_chunk * data_length;
+    std::size_t big_chunk_size2 = big_chunk_size1;
+    std::size_t big_chunk_size3 = big_chunk_size2;
+    std::size_t big_chunk_size4 = full_size - ( big_chunk_size1 + big_chunk_size2 + big_chunk_size3 );
 
     std::ifstream in_stream( input_data_file_name.c_str(), std::ios::binary );
     if( !in_stream )
@@ -112,14 +164,14 @@ int main( int argc, char *argv[] )
         return 1;
     }
 
-    std::vector<char> data1( size1 );
-    in_stream.read( data1.data(), static_cast<std::streamsize>( size1 ) );
-    std::vector<char> data2( size2 );
-    in_stream.read( data2.data(), static_cast<std::streamsize>( size2 ) );
-    std::vector<char> data3( size3 );
-    in_stream.read( data3.data(), static_cast<std::streamsize>( size3 ) );
-    std::vector<char> data4( size4 );
-    in_stream.read( data4.data(), static_cast<std::streamsize>( size4 ) );
+    std::vector<char> data1( big_chunk_size1 );
+    in_stream.read( data1.data(), static_cast<std::streamsize>( big_chunk_size1 ) );
+    std::vector<char> data2( big_chunk_size2 );
+    in_stream.read( data2.data(), static_cast<std::streamsize>( big_chunk_size2 ) );
+    std::vector<char> data3( big_chunk_size3 );
+    in_stream.read( data3.data(), static_cast<std::streamsize>( big_chunk_size3 ) );
+    std::vector<char> data4( big_chunk_size4 );
+    in_stream.read( data4.data(), static_cast<std::streamsize>( big_chunk_size4 ) );
 
     in_stream.close();
 
@@ -127,10 +179,6 @@ int main( int argc, char *argv[] )
 
     if( action == eAction::kEncode )
     {
-        std::string output_ecc_file_name = argv[3];
-
-        //---
-
         schifra::galois::field_polynomial generator_polynomial( field );
 
         if( !schifra::make_sequential_root_generator_polynomial( field, gen_poly_index, gen_poly_root_count, generator_polynomial ) )
@@ -141,8 +189,8 @@ int main( int argc, char *argv[] )
 
         //---
 
-        std::string now = get_current_time();
-        std::cout << now << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
+        if( verbose >= 1 )
+            std::cout << get_current_time() << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
 
         typedef schifra::reed_solomon::encoder<code_length,fec_length> encoder_t;
         typedef schifra::reed_solomon::segment_encoder<code_length,fec_length> segment_encoder_t;
@@ -166,8 +214,8 @@ int main( int argc, char *argv[] )
 
         //---
 
-        now = get_current_time();
-        std::cout << now << " Write output file" << std::endl;
+        if( verbose >= 2 )
+            std::cout << get_current_time() << " Write output file" << std::endl;
 
         std::ofstream out_stream( output_ecc_file_name.c_str(), std::ios::binary );
         if( !out_stream )
@@ -185,19 +233,13 @@ int main( int argc, char *argv[] )
     }
     else if( action == eAction::kDecode )
     {
-        std::string input_ecc_file_name = argv[3];
-        std::string output_data_file_name = argv[4];
-
-        //---
-
         full_size = schifra::fileio::file_size( input_ecc_file_name );
-        small_size = full_size / fec_length / 4 * fec_length;
         assert( !( full_size % fec_length ) );
 
-        size1 = small_size;
-        size2 = small_size;
-        size3 = small_size;
-        size4 = full_size - ( size1 + size2 + size3 );
+        big_chunk_size1 = nb_data_chunk_per_big_chunk * fec_length; // Must use the same nb_data_chunk_per_big_chunk as the data big_chunk, to have the same number of chunk in both side
+        big_chunk_size2 = big_chunk_size1;
+        big_chunk_size3 = big_chunk_size2;
+        big_chunk_size4 = full_size - ( big_chunk_size1 + big_chunk_size2 + big_chunk_size3 );
 
         std::ifstream in_ecc_stream( input_ecc_file_name.c_str(), std::ios::binary );
         if( !in_ecc_stream )
@@ -206,21 +248,21 @@ int main( int argc, char *argv[] )
             return 1;
         }
 
-        std::vector<char> ecc1( size1 );
-        in_ecc_stream.read( ecc1.data(), static_cast<std::streamsize>( size1 ) );
-        std::vector<char> ecc2( size2 );
-        in_ecc_stream.read( ecc2.data(), static_cast<std::streamsize>( size2 ) );
-        std::vector<char> ecc3( size3 );
-        in_ecc_stream.read( ecc3.data(), static_cast<std::streamsize>( size3 ) );
-        std::vector<char> ecc4( size4 );
-        in_ecc_stream.read( ecc4.data(), static_cast<std::streamsize>( size4 ) );
+        std::vector<char> ecc1( big_chunk_size1 );
+        in_ecc_stream.read( ecc1.data(), static_cast<std::streamsize>( big_chunk_size1 ) );
+        std::vector<char> ecc2( big_chunk_size2 );
+        in_ecc_stream.read( ecc2.data(), static_cast<std::streamsize>( big_chunk_size2 ) );
+        std::vector<char> ecc3( big_chunk_size3 );
+        in_ecc_stream.read( ecc3.data(), static_cast<std::streamsize>( big_chunk_size3 ) );
+        std::vector<char> ecc4( big_chunk_size4 );
+        in_ecc_stream.read( ecc4.data(), static_cast<std::streamsize>( big_chunk_size4 ) );
 
         in_ecc_stream.close();
 
         //---
 
-        std::string now = get_current_time();
-        std::cout << now << " Start decoding: " << input_data_file_name << " + " << input_ecc_file_name << " -> " << output_data_file_name << std::endl;
+        if( verbose >= 1 )
+            std::cout << get_current_time() << " Start decoding: " << input_data_file_name << " + " << input_ecc_file_name << " -> " << output_data_file_name << std::endl;
 
         typedef schifra::reed_solomon::decoder<code_length,fec_length> decoder_t;
         typedef schifra::reed_solomon::segment_decoder<code_length,fec_length> segment_decoder_t;
@@ -244,8 +286,8 @@ int main( int argc, char *argv[] )
 
         //---
 
-        now = get_current_time();
-        std::cout << now << " Write output file" << std::endl;
+        if( verbose >= 2 )
+            std::cout << get_current_time() << " Write output file" << std::endl;
 
         std::ofstream out_stream( output_data_file_name.c_str(), std::ios::binary );
         if( !out_stream )
