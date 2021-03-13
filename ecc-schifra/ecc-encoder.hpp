@@ -24,7 +24,6 @@
 #define INCLUDE_ECC_ENCODER_HPP
 
 
-#include <cstring>
 #include <iostream>
 #include <fstream>
 
@@ -47,67 +46,67 @@ namespace schifra
          typedef encoder<code_length,fec_length> encoder_type;
          typedef typename encoder_type::block_type block_type;
 
-         segment_encoder(const encoder_type& encoder,
-                              const std::vector<char>& input_segment,
-                              std::vector<char>& output_segment)
+         segment_encoder( const encoder_type& iEncoder,
+                          const std::vector<char>& iInputSegment,
+                          std::vector<char>& oOutputSegment )
          {
-            std::size_t remaining_bytes = input_segment.size();
-            if (remaining_bytes == 0)
+            std::size_t remaining_bytes = iInputSegment.size();
+            if( remaining_bytes == 0 )
             {
                std::cout << "reed_solomon::segment_encoder() - Error: empty segment." << std::endl;
                return;
             }
 
-            std::size_t remaining_start = 0;
+            std::size_t chunk_start = 0;
 
-            while (remaining_bytes >= data_length)
+            while( remaining_bytes >= data_length )
             {
-               process_block(encoder,input_segment,output_segment,remaining_start,data_length);
+               process_block( iEncoder, iInputSegment, oOutputSegment, chunk_start, data_length );
                remaining_bytes -= data_length;
-               remaining_start += data_length;
+               chunk_start += data_length;
             }
 
-            if (remaining_bytes > 0)
+            if( remaining_bytes > 0 )
             {
-               process_block(encoder,input_segment,output_segment,remaining_start,remaining_bytes);
+               process_block( iEncoder, iInputSegment, oOutputSegment, chunk_start, remaining_bytes );
             }
          }
 
       private:
 
-         inline void process_block(const encoder_type& encoder,
-                                    const std::vector<char>& input_segment,
-                                    std::vector<char>& output_segment,
-                                    const std::size_t& read_start,
-                                    const std::size_t& read_amount)
+         inline void process_block( const encoder_type& iEncoder,
+                                    const std::vector<char>& iInputSegment,
+                                    std::vector<char>& oOutputSegment,
+                                    const std::size_t& iChunkStart,
+                                    const std::size_t& iChunkSize )
          {
-            const char* data_buffer = &input_segment.data()[read_start];
-            for (std::size_t i = 0; i < read_amount; ++i)
+            const char* data_buffer = &iInputSegment.data()[iChunkStart];
+            for( std::size_t i = 0; i < iChunkSize; ++i )
             {
-               block_.data[i] = (data_buffer[i] & 0xFF);
+               mBlock.data[i] = ( data_buffer[i] & 0xFF );
             }
 
-            if (read_amount < data_length)
+            if ( iChunkSize < data_length )
             {
-               for (std::size_t i = read_amount; i < data_length; ++i)
+               for( std::size_t i = iChunkSize; i < data_length; ++i )
                {
-                  block_.data[i] = 0x00;
+                  mBlock.data[i] = 0x00;
                }
             }
 
-            if (!encoder.encode(block_))
+            if( !iEncoder.encode( mBlock ) )
             {
                std::cout << "reed_solomon::segment_encoder.process_block() - Error during encoding of block!" << std::endl;
                return;
             }
 
-            for (std::size_t i = 0; i < fec_length; ++i)
+            for( std::size_t i = 0; i < fec_length; ++i )
             {
-               output_segment.push_back( static_cast<char>(block_.fec(i) & 0xFF) );
+               oOutputSegment.push_back( static_cast<char>( mBlock.fec( i ) & 0xFF ) );
             }
          }
 
-         block_type block_;
+         block_type mBlock;
       };
    
    } // namespace reed_solomon
