@@ -288,9 +288,9 @@ main( int argc, char *argv[] )
 
     std::size_t data_full_size = schifra::fileio::file_size( input_data_file_name );
     // Number of big chunk
-    float big_chunk_sizef = data_full_size / float( processor_count );
+    double big_chunk_sizef = data_full_size / double( processor_count );
     // Number of data chunk (223o) per big chunk
-    float nbf_data_chunk_per_big_chunk = big_chunk_sizef / data_length;
+    double nbf_data_chunk_per_big_chunk = big_chunk_sizef / data_length;
     // Number of data chunk (223o) per big chunk by rounding to upper value
     int nb_data_chunk_per_big_chunk = int( ceil( nbf_data_chunk_per_big_chunk ) );
     // Size of a big chunk containing a multiple of data_length chunk (except for the last one)
@@ -302,7 +302,7 @@ main( int argc, char *argv[] )
     error = AllocateBigChunks( data_full_size, data_big_chunk_size, data_big_chunks );
     if( error )
         return 1;
-    
+
     assert( data_big_chunks.size() <= processor_count );
 
     error = ReadFileToChunks( input_data_file_name, data_big_chunks );
