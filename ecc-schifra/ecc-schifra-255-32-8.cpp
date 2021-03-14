@@ -60,6 +60,39 @@ get_current_time()
     return buffer;
 }
 
+enum LogLevel: uint8_t
+{
+    DEBUG,  // -v -v -v
+    TRACE,  // -v -v
+    INFO,   // -v
+    WARNING,// no -v
+    ERROR,
+    NONE,
+};
+
+static LogLevel sgCurrentLogLevel = WARNING;
+
+void
+SetLogLevel( int iVerbose )
+{
+    switch( iVerbose )
+    {
+        case -1: sgCurrentLogLevel = NONE; break;
+        case 0: sgCurrentLogLevel = WARNING; break;
+        case 1: sgCurrentLogLevel = INFO; break;
+        case 2: sgCurrentLogLevel = TRACE; break;
+        case 3: sgCurrentLogLevel = DEBUG; break;
+        default: sgCurrentLogLevel = DEBUG; break;
+    }
+}
+
+void
+Log( LogLevel iLogLevel, const std::string& iString )
+{
+    if( iLogLevel >= sgCurrentLogLevel )
+        std::cout << get_current_time() << " " << iString << std::endl;
+}
+
 //---
 
 int
@@ -104,7 +137,7 @@ ReadFileToChunks( std::string iPathFile, std::vector<tBigChunk>& oBigChunks )
     std::ifstream in_stream( iPathFile.c_str(), std::ios::binary );
     if( !in_stream )
     {
-        std::cout << "reed_solomon::ReadFileToChunks() - Error: input file could not be opened: " << iPathFile << std::endl;
+        Log( ERROR, "reed_solomon::ReadFileToChunks() - Error: input file could not be opened: " + iPathFile );
         return 1;
     }
 
@@ -125,7 +158,7 @@ WriteChunksToFile( const std::vector<tBigChunk>& iBigChunks, std::string iPathFi
     std::ofstream out_stream( iPathFile.c_str(), std::ios::binary );
     if( !out_stream )
     {
-        std::cout << "reed_solomon::WriteChunksToFile() - Error: output file could not be created: " << iPathFile << std::endl;
+        Log( ERROR, "reed_solomon::WriteChunksToFile() - Error: output file could not be created: " + iPathFile );
         return 1;
     }
 
@@ -151,7 +184,6 @@ enum class eAction
 
 enum class eArgument
 {
-    kVerbose,
     kAction,
     kInputDataFile,
     kOutputEccFile,
@@ -202,6 +234,8 @@ ParseArgs( std::deque<std::string>& ioArgs, std::map<eArgument, std::any>& oArgs
         }
     }
 
+    SetLogLevel( verbose );
+
     //--- Positional arguments
 
     eAction action = eAction::kNone;
@@ -224,13 +258,10 @@ ParseArgs( std::deque<std::string>& ioArgs, std::map<eArgument, std::any>& oArgs
         || ( action == eAction::kEncode && ( !input_data_file_name.length() || !output_ecc_file_name.length() ) )
         || ( action == eAction::kDecode && ( !input_data_file_name.length() || !input_ecc_file_name.length() || !output_data_file_name.length() ) ) )
     {
-        std::cout << "Error - Bad arguments." << std::endl;
-        std::cout << "./ecc-schifra-255-32-8 [-v] {e, encode} -i input-data-file -o output-ecc-file" << std::endl;
-        std::cout << "./ecc-schifra-255-32-8 [-v] {d, decode} -i input-data-file -e input-ecc-file -o output-datafile" << std::endl;
-        std::cout << std::endl;
-        std::cout << args_positional.size() << std::endl;
-        std::cout << int(action) << " " << input_data_file_name << " " << output_ecc_file_name << std::endl;
-        std::cout << int(action) << " " << input_data_file_name << " " << input_ecc_file_name << " " << output_data_file_name << " " << std::endl;
+        Log( ERROR, "Error - Bad arguments." );
+        Log( ERROR, "Usage:" );
+        Log( ERROR, "./ecc-schifra-255-32-8 [-v [-v [-v]]] {e, encode} -i input-data-file -o output-ecc-file" );
+        Log( ERROR, "./ecc-schifra-255-32-8 [-v [-v [-v]]] {d, decode} -i input-data-file -e input-ecc-file -o output-datafile" );
 
         return 1;
     }
@@ -238,7 +269,6 @@ ParseArgs( std::deque<std::string>& ioArgs, std::map<eArgument, std::any>& oArgs
     //--- Build argument parameters
 
     oArgs[eArgument::kAction] = action;
-    oArgs[eArgument::kVerbose] = verbose;
     oArgs[eArgument::kInputDataFile] = input_data_file_name;
     oArgs[eArgument::kOutputEccFile] = output_ecc_file_name;
     oArgs[eArgument::kInputEccFile] = input_ecc_file_name;
@@ -246,6 +276,8 @@ ParseArgs( std::deque<std::string>& ioArgs, std::map<eArgument, std::any>& oArgs
 
     return 0;
 }
+
+//---
 
 int
 main( int argc, char *argv[] )
@@ -267,7 +299,6 @@ main( int argc, char *argv[] )
     if( error )
         return 1;
 
-    int verbose = std::any_cast<int>( args[eArgument::kVerbose] );
     eAction action = std::any_cast<eAction>( args[eArgument::kAction] );
     std::string input_data_file_name = std::any_cast<std::string>( args[eArgument::kInputDataFile] );
     std::string output_ecc_file_name = std::any_cast<std::string>( args[eArgument::kOutputEccFile] );
@@ -281,6 +312,8 @@ main( int argc, char *argv[] )
 //      const schifra::galois::field field( field_descriptor, primitive_polynomial_size05b, primitive_polynomial05b );
 
     const schifra::galois::field field( field_descriptor, schifra::galois::primitive_polynomial_size06, schifra::galois::primitive_polynomial06 );
+
+    Log( INFO, "Start processing: " + input_data_file_name );
 
     //---
 
@@ -305,6 +338,8 @@ main( int argc, char *argv[] )
 
     assert( data_big_chunks.size() <= processor_count );
 
+    Log( TRACE, "Read input file [data]: " + input_data_file_name );
+
     error = ReadFileToChunks( input_data_file_name, data_big_chunks );
     if( error )
         return 1;
@@ -313,14 +348,11 @@ main( int argc, char *argv[] )
 
     if( action == eAction::kEncode )
     {
-        if( verbose >= 1 )
-            std::cout << get_current_time() << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
-
         schifra::galois::field_polynomial generator_polynomial( field );
 
         if( !schifra::make_sequential_root_generator_polynomial( field, gen_poly_index, gen_poly_root_count, generator_polynomial ) )
         {
-            std::cout << "Error - Failed to create sequential root generator!" << std::endl;
+            Log( ERROR, "Error - Failed to create sequential root generator!" );
             return 1;
         }
 
@@ -340,6 +372,8 @@ main( int argc, char *argv[] )
         const encoder_t rs_encoder( field, generator_polynomial );
 
         //---
+
+        Log( TRACE, "Start encoding: " + input_data_file_name + " -> " + output_ecc_file_name );
 
         // Callback for the thread
         auto encode = [&]( const tBigChunk& iData, tBigChunk& oEcc )
@@ -363,8 +397,7 @@ main( int argc, char *argv[] )
 
         //---
 
-        if( verbose >= 2 )
-            std::cout << get_current_time() << " Write output file" << std::endl;
+        Log( TRACE, "Write output file [ecc]: " + output_ecc_file_name );
 
         error = WriteChunksToFile( ecc_big_chunks, output_ecc_file_name );
         if( error )
@@ -372,9 +405,6 @@ main( int argc, char *argv[] )
     }
     else if( action == eAction::kDecode )
     {
-        if( verbose >= 1 )
-            std::cout << get_current_time() << " Start decoding: " << input_data_file_name << " + " << input_ecc_file_name << " -> " << output_data_file_name << std::endl;
-
         std::size_t ecc_full_size = schifra::fileio::file_size( input_ecc_file_name );
         assert( !( ecc_full_size % fec_length ) );
         
@@ -388,6 +418,8 @@ main( int argc, char *argv[] )
             return 1;
 
         assert( ecc_big_chunks.size() <= processor_count );
+
+        Log( TRACE, "Read input file [ecc]: " + input_ecc_file_name );
 
         error = ReadFileToChunks( input_ecc_file_name, ecc_big_chunks );
         if( error )
@@ -407,6 +439,8 @@ main( int argc, char *argv[] )
         const decoder_t rs_decoder( field, gen_poly_index );
 
         //---
+
+        Log( TRACE, "Start decoding: " + input_data_file_name + " + " + input_ecc_file_name + " -> " + output_data_file_name );
 
         // Callback for the thread
         auto decode = [&]( const tBigChunk& iData, const tBigChunk& iEcc, tBigChunk& oDataDecoded )
@@ -430,8 +464,7 @@ main( int argc, char *argv[] )
 
         //---
 
-        if( verbose >= 2 )
-            std::cout << get_current_time() << " Write output file" << std::endl;
+        Log( TRACE, "Write output file [regenerated]: " + output_data_file_name );
 
         error = WriteChunksToFile( data_decoded_big_chunks, output_data_file_name );
         if( error )
