@@ -20,10 +20,12 @@
 */
 
 
+#include <any>
 #include <cstring>
 #include <cstddef>
 #include <deque>
 #include <math.h>
+#include <map>
 #include <string>
 #include <thread>
 
@@ -57,6 +59,8 @@ get_current_time()
 
     return buffer;
 }
+
+//---
 
 int
 AllocateEmptyBigChunks( int iBigChunkCount, std::vector<tBigChunk>& oBigChunks )
@@ -136,18 +140,29 @@ WriteChunksToFile( const std::vector<tBigChunk>& iBigChunks, std::string iPathFi
     return 0;
 }
 
-int
-main( int argc, char *argv[] )
-{
-    const std::size_t field_descriptor    =   8;
-    const std::size_t gen_poly_index      = 120;
-    const std::size_t gen_poly_root_count =  32;
-    const std::size_t code_length         = 255;
-    const std::size_t fec_length          =  32;
-    const std::size_t data_length         = code_length - fec_length;
+//---
 
-    std::deque<std::string> args( argv, argv + argc );
-    args.pop_front(); // Remove program path
+enum class eAction
+{
+    kNone,
+    kEncode,
+    kDecode,
+};
+
+enum class eArgument
+{
+    kVerbose,
+    kAction,
+    kInputDataFile,
+    kOutputEccFile,
+    kInputEccFile,
+    kOutputDataDecodedFile,
+};
+
+int
+ParseArgs( std::deque<std::string>& ioArgs, std::map<eArgument, std::any>& oArgs )
+{
+    //--- Optional arguments
 
     int verbose = 0;
     std::string input_data_file_name;   // encode + decode
@@ -156,10 +171,10 @@ main( int argc, char *argv[] )
     std::string output_data_file_name;  // decode
 
     std::deque<std::string> args_positional;
-    while( args.size() )
+    while( ioArgs.size() )
     {
-        std::string arg = args[0];
-        args.pop_front();
+        std::string arg = ioArgs[0];
+        ioArgs.pop_front();
 
         if( arg == "-v" )
         {
@@ -167,19 +182,19 @@ main( int argc, char *argv[] )
         }
         else if( arg == "-i" )
         {
-            input_data_file_name = args[0];
-            args.pop_front();
+            input_data_file_name = ioArgs[0];
+            ioArgs.pop_front();
         }
         else if( arg == "-e" )
         {
-            input_ecc_file_name = args[0];
-            args.pop_front();
+            input_ecc_file_name = ioArgs[0];
+            ioArgs.pop_front();
         }
         else if( arg == "-o" )
         {
-            output_ecc_file_name = args[0];
-            output_data_file_name = args[0];
-            args.pop_front();
+            output_ecc_file_name = ioArgs[0];
+            output_data_file_name = ioArgs[0];
+            ioArgs.pop_front();
         }
         else
         {
@@ -187,12 +202,8 @@ main( int argc, char *argv[] )
         }
     }
 
-    enum class eAction
-    {
-        kNone,
-        kEncode,
-        kDecode,
-    };
+    //--- Positional arguments
+
     eAction action = eAction::kNone;
 
     if( args_positional.size() )
@@ -205,6 +216,8 @@ main( int argc, char *argv[] )
         if( arg == "d" || arg == "decode" )
             action = eAction::kDecode;
     }
+
+    //--- Error checking
 
     if( args_positional.size() // remaining arguments
         || action == eAction::kNone 
@@ -219,16 +232,55 @@ main( int argc, char *argv[] )
         std::cout << int(action) << " " << input_data_file_name << " " << output_ecc_file_name << std::endl;
         std::cout << int(action) << " " << input_data_file_name << " " << input_ecc_file_name << " " << output_data_file_name << " " << std::endl;
 
-        return -1;
+        return 1;
     }
+
+    //--- Build argument parameters
+
+    oArgs[eArgument::kAction] = action;
+    oArgs[eArgument::kVerbose] = verbose;
+    oArgs[eArgument::kInputDataFile] = input_data_file_name;
+    oArgs[eArgument::kOutputEccFile] = output_ecc_file_name;
+    oArgs[eArgument::kInputEccFile] = input_ecc_file_name;
+    oArgs[eArgument::kOutputDataDecodedFile] = output_data_file_name;
+
+    return 0;
+}
+
+int
+main( int argc, char *argv[] )
+{
+    const std::size_t field_descriptor    =   8;
+    const std::size_t gen_poly_index      = 120;
+    const std::size_t gen_poly_root_count =  32;
+    const std::size_t code_length         = 255;
+    const std::size_t fec_length          =  32;
+    const std::size_t data_length         = code_length - fec_length;
+
+    int error = 0;
+
+    std::deque<std::string> string_args( argv, argv + argc );
+    string_args.pop_front(); // Remove program path
+
+    std::map<eArgument, std::any> args;
+    error = ParseArgs( string_args, args );
+    if( error )
+        return 1;
+
+    int verbose = std::any_cast<int>( args[eArgument::kVerbose] );
+    eAction action = std::any_cast<eAction>( args[eArgument::kAction] );
+    std::string input_data_file_name = std::any_cast<std::string>( args[eArgument::kInputDataFile] );
+    std::string output_ecc_file_name = std::any_cast<std::string>( args[eArgument::kOutputEccFile] );
+    std::string input_ecc_file_name = std::any_cast<std::string>( args[eArgument::kInputEccFile] );
+    std::string output_data_file_name = std::any_cast<std::string>( args[eArgument::kOutputDataDecodedFile] );
+
+    //---
 
 //      const unsigned int primitive_polynomial05b[]    = {1, 0, 0, 1, 1, 0, 0, 0, 1};
 //      const unsigned int primitive_polynomial_size05b = 9;
 //      const schifra::galois::field field( field_descriptor, primitive_polynomial_size05b, primitive_polynomial05b );
 
     const schifra::galois::field field( field_descriptor, schifra::galois::primitive_polynomial_size06, schifra::galois::primitive_polynomial06 );
-
-    int error = 0;
 
     //---
 
@@ -261,6 +313,9 @@ main( int argc, char *argv[] )
 
     if( action == eAction::kEncode )
     {
+        if( verbose >= 1 )
+            std::cout << get_current_time() << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
+
         schifra::galois::field_polynomial generator_polynomial( field );
 
         if( !schifra::make_sequential_root_generator_polynomial( field, gen_poly_index, gen_poly_root_count, generator_polynomial ) )
@@ -278,22 +333,19 @@ main( int argc, char *argv[] )
 
         //---
 
-        if( verbose >= 1 )
-            std::cout << get_current_time() << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
-
         typedef schifra::reed_solomon::encoder<code_length,fec_length> encoder_t;
         typedef schifra::reed_solomon::segment_encoder<code_length,fec_length> segment_encoder_t;
 
         // Create the encoder
         const encoder_t rs_encoder( field, generator_polynomial );
 
+        //---
+
         // Callback for the thread
         auto encode = [&]( const tBigChunk& iData, tBigChunk& oEcc )
         {
             segment_encoder_t( rs_encoder, iData, oEcc );
         };
-
-        //---
 
         // Create the threads
         std::vector<std::thread> threads;
@@ -320,6 +372,9 @@ main( int argc, char *argv[] )
     }
     else if( action == eAction::kDecode )
     {
+        if( verbose >= 1 )
+            std::cout << get_current_time() << " Start decoding: " << input_data_file_name << " + " << input_ecc_file_name << " -> " << output_data_file_name << std::endl;
+
         std::size_t ecc_full_size = schifra::fileio::file_size( input_ecc_file_name );
         assert( !( ecc_full_size % fec_length ) );
         
@@ -345,22 +400,19 @@ main( int argc, char *argv[] )
 
         //---
 
-        if( verbose >= 1 )
-            std::cout << get_current_time() << " Start decoding: " << input_data_file_name << " + " << input_ecc_file_name << " -> " << output_data_file_name << std::endl;
-
         typedef schifra::reed_solomon::decoder<code_length,fec_length> decoder_t;
         typedef schifra::reed_solomon::segment_decoder<code_length,fec_length> segment_decoder_t;
 
         // Create the encoder
         const decoder_t rs_decoder( field, gen_poly_index );
 
+        //---
+
         // Callback for the thread
         auto decode = [&]( const tBigChunk& iData, const tBigChunk& iEcc, tBigChunk& oDataDecoded )
         {
             segment_decoder_t( rs_decoder, iData, iEcc, oDataDecoded );
         };
-
-        //---
 
         // Create the threads
         std::vector<std::thread> threads;

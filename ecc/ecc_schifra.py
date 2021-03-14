@@ -86,9 +86,6 @@ class cEccSchifra:
             print( Fore.CYAN + 'Skip: ecc file already exists: {}'.format( self.mFileEcc ) )
             return
 
-        # start = datetime.datetime.now()
-        # print( '[{}] {} -> {}'.format( now(), self.mFileInput, self.mFileEcc ) )
-
         self.mFileEcc.parent.mkdir( parents=True, exist_ok=True )
 
         #---
@@ -106,19 +103,12 @@ class cEccSchifra:
         #---
 
         self.mFileEcc.chmod( 0o777 )
-        # diff = datetime.datetime.now() - start
-        # print( '[{}] time used: {} (at {:.2f} Mo/s)'.format( now(), diff, ( size_to_process / 1000000 ) / diff.total_seconds() ) )
 
     ## Fix the input file via its ecc file
-    def ProcessFix( self ):
-        size_to_process = self.mFileInput.stat().st_size
-
+    def ProcessFix( self, iCompare ):
         if not self.mFileEcc.is_file():
             print( Fore.CYAN + 'Skip: ecc file doesn\'t exists: {}'.format( self.mFileEcc ) )
             return
-
-        # start = datetime.datetime.now()
-        # print( '[{}] {}, {} -> {}'.format( now(), self.mFileInput, self.mFileEcc, self.mFileFix ) )
 
         self.mFileFix.parent.mkdir( parents=True, exist_ok=True )
 
@@ -138,7 +128,17 @@ class cEccSchifra:
         #---
 
         self.mFileFix.chmod( 0o777 )
-        # print( '[{}] time used: {}'.format( now(), datetime.datetime.now() - start ) )
+
+        #---
+
+        if iCompare:
+            command = [ 'diff',
+                        self.mFileInput,
+                        self.mFileFix ]
+
+            self._PrintHeader( command )
+            completed_process = subprocess.run( command )
+            self._PrintFooter( command )
 
     ## Check the ecc file size (proportional to the input file size)
     #

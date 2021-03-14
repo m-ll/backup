@@ -25,7 +25,7 @@ from ecc.ecc_schifra import cEccSchifra
 #---
 
 parser = argparse.ArgumentParser()
-parser.add_argument( 'action', choices=['create', 'check-size', 'fix'], help='The action to process' )
+parser.add_argument( 'action', choices=['create', 'check-size', 'fix', 'fix-and-compare'], help='The action to process' )
 parser.add_argument( '-i', '--input', required=True, help='The input file' )
 args = parser.parse_args()
 
@@ -56,4 +56,6 @@ for ecc in eccs:
     elif args.action == 'check-size':
         ecc.ProcessCheckSize()
     elif args.action == 'fix':
-        ecc.ProcessFix()
+        ecc.ProcessFix( False )
+    elif args.action == 'fix-and-compare':
+        ecc.ProcessFix( True )
