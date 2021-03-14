@@ -10,6 +10,11 @@ Everything should be use under Linux or WSL (=Windows Sub Linux)
 - Python >= 3.6
 - `pip3 install colorama`
 
+# TODO
+
+- Create new file inside a tmp directory, then move it in its right directory (if the execution is stopped during a hash or ecc, no need to find and remove the not finish one)
+- maybe improve python ecc script to enable multi entries with the -i argument (certainly with nargs=+)
+
 # Bud (BackUp Disk) prepare
 
 - plug bud
