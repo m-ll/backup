@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cstddef>
 #include <deque>
+#include <math.h>
 #include <string>
 #include <thread>
 
@@ -33,8 +34,14 @@
 #include "ecc-decoder.hpp"
 #include "ecc-encoder.hpp"
 
+//---
 
-std::string get_current_time()
+typedef std::vector<char> tBigChunk;
+
+//---
+
+std::string
+get_current_time()
 {
     time_t now;
     time( &now );
@@ -51,13 +58,93 @@ std::string get_current_time()
     return buffer;
 }
 
-int main( int argc, char *argv[] )
+int
+AllocateEmptyBigChunks( int iBigChunkCount, std::vector<tBigChunk>& oBigChunks )
+{
+    for( int i = 0; i < iBigChunkCount; i++ )
+    {
+        oBigChunks.push_back( tBigChunk() );
+    }
+
+    return 0;
+}
+
+int
+AllocateBigChunks( std::size_t iFullSize, std::size_t iBigChunkSize, std::vector<tBigChunk>& oBigChunks )
+{
+    // Get size for each data big chunk
+    std::vector<std::size_t> big_chunk_sizes;
+    std::size_t remaining_size = iFullSize;
+    while( remaining_size >= iBigChunkSize )
+    {
+        big_chunk_sizes.push_back( iBigChunkSize );
+        remaining_size -= iBigChunkSize;
+    }
+    if( remaining_size )
+        big_chunk_sizes.push_back( remaining_size );
+
+    assert( remaining_size < iBigChunkSize );
+
+    // Alocate each big chunk
+    for( auto big_chunk_size : big_chunk_sizes )
+    {
+        oBigChunks.push_back( tBigChunk( big_chunk_size ) );
+    }
+
+    return 0;
+}
+
+int
+ReadFileToChunks( std::string iPathFile, std::vector<tBigChunk>& oBigChunks )
+{
+    std::ifstream in_stream( iPathFile.c_str(), std::ios::binary );
+    if( !in_stream )
+    {
+        std::cout << "reed_solomon::ReadFileToChunks() - Error: input file could not be opened: " << iPathFile << std::endl;
+        return 1;
+    }
+
+    // Read all big chunks from data input file
+    for( auto& big_chunk : oBigChunks )
+    {
+        in_stream.read( big_chunk.data(), static_cast<std::streamsize>( big_chunk.size() ) );
+    }
+
+    in_stream.close();
+
+    return 0;
+}
+
+int
+WriteChunksToFile( const std::vector<tBigChunk>& iBigChunks, std::string iPathFile )
+{
+    std::ofstream out_stream( iPathFile.c_str(), std::ios::binary );
+    if( !out_stream )
+    {
+        std::cout << "reed_solomon::WriteChunksToFile() - Error: output file could not be created: " << iPathFile << std::endl;
+        return 1;
+    }
+
+    // Write ecc to the output file
+    for( const auto& big_chunk : iBigChunks )
+    {
+        out_stream.write( big_chunk.data(), big_chunk.size() );
+    }
+
+    out_stream.close();
+    
+    return 0;
+}
+
+int
+main( int argc, char *argv[] )
 {
     const std::size_t field_descriptor    =   8;
     const std::size_t gen_poly_index      = 120;
     const std::size_t gen_poly_root_count =  32;
     const std::size_t code_length         = 255;
     const std::size_t fec_length          =  32;
+    const std::size_t data_length         = code_length - fec_length;
 
     std::deque<std::string> args( argv, argv + argc );
     args.pop_front(); // Remove program path
@@ -141,39 +228,34 @@ int main( int argc, char *argv[] )
 
     const schifra::galois::field field( field_descriptor, schifra::galois::primitive_polynomial_size06, schifra::galois::primitive_polynomial06 );
 
+    int error = 0;
+
     //---
 
-    //const auto processor_count = std::thread::hardware_concurrency();
-    int nb_big_chunk = 4;
+    const auto processor_count = std::thread::hardware_concurrency();
 
-    std::size_t full_size = schifra::fileio::file_size( input_data_file_name );
-    const std::size_t data_length = code_length - fec_length;
-    int nb_data_chunk = full_size / data_length; // Number of data chunk (223o) inside input file, doesn't count the last partial one (as integer division) but it's not a problem, it's just have an idea to split for each thread
+    std::size_t data_full_size = schifra::fileio::file_size( input_data_file_name );
+    // Number of big chunk
+    float big_chunk_sizef = data_full_size / float( processor_count );
+    // Number of data chunk (223o) per big chunk
+    float nbf_data_chunk_per_big_chunk = big_chunk_sizef / data_length;
+    // Number of data chunk (223o) per big chunk by rounding to upper value
+    int nb_data_chunk_per_big_chunk = int( ceil( nbf_data_chunk_per_big_chunk ) );
+    // Size of a big chunk containing a multiple of data_length chunk (except for the last one)
+    std::size_t data_big_chunk_size = nb_data_chunk_per_big_chunk * data_length;
 
-    int nb_data_chunk_per_big_chunk = nb_data_chunk / nb_big_chunk; // Number of data chunk for each big (thread) chunk
+    //---
 
-    std::size_t big_chunk_size1 = nb_data_chunk_per_big_chunk * data_length;
-    std::size_t big_chunk_size2 = big_chunk_size1;
-    std::size_t big_chunk_size3 = big_chunk_size2;
-    std::size_t big_chunk_size4 = full_size - ( big_chunk_size1 + big_chunk_size2 + big_chunk_size3 );
-
-    std::ifstream in_stream( input_data_file_name.c_str(), std::ios::binary );
-    if( !in_stream )
-    {
-        std::cout << "reed_solomon::file_encoder() - Error: input data file could not be opened." << std::endl;
+    std::vector<tBigChunk> data_big_chunks;
+    error = AllocateBigChunks( data_full_size, data_big_chunk_size, data_big_chunks );
+    if( error )
         return 1;
-    }
+    
+    assert( data_big_chunks.size() <= processor_count );
 
-    std::vector<char> data1( big_chunk_size1 );
-    in_stream.read( data1.data(), static_cast<std::streamsize>( big_chunk_size1 ) );
-    std::vector<char> data2( big_chunk_size2 );
-    in_stream.read( data2.data(), static_cast<std::streamsize>( big_chunk_size2 ) );
-    std::vector<char> data3( big_chunk_size3 );
-    in_stream.read( data3.data(), static_cast<std::streamsize>( big_chunk_size3 ) );
-    std::vector<char> data4( big_chunk_size4 );
-    in_stream.read( data4.data(), static_cast<std::streamsize>( big_chunk_size4 ) );
-
-    in_stream.close();
+    error = ReadFileToChunks( input_data_file_name, data_big_chunks );
+    if( error )
+        return 1;
 
     //---
 
@@ -189,75 +271,77 @@ int main( int argc, char *argv[] )
 
         //---
 
+        std::vector<tBigChunk> ecc_big_chunks;
+        error = AllocateEmptyBigChunks( data_big_chunks.size(), ecc_big_chunks );
+        if( error )
+            return 1;
+
+        //---
+
         if( verbose >= 1 )
             std::cout << get_current_time() << " Start encoding: " << input_data_file_name << " -> " << output_ecc_file_name << std::endl;
 
         typedef schifra::reed_solomon::encoder<code_length,fec_length> encoder_t;
         typedef schifra::reed_solomon::segment_encoder<code_length,fec_length> segment_encoder_t;
 
+        // Create the encoder
         const encoder_t rs_encoder( field, generator_polynomial );
 
-        std::vector<char> ecc1;
-        std::vector<char> ecc2;
-        std::vector<char> ecc3;
-        std::vector<char> ecc4;
+        // Callback for the thread
+        auto encode = [&]( const tBigChunk& iData, tBigChunk& oEcc )
+        {
+            segment_encoder_t( rs_encoder, iData, oEcc );
+        };
 
-        std::thread first ( [&](){ segment_encoder_t( rs_encoder, data1, ecc1 ); } );
-        std::thread second( [&](){ segment_encoder_t( rs_encoder, data2, ecc2 ); } );
-        std::thread third ( [&](){ segment_encoder_t( rs_encoder, data3, ecc3 ); } );
-        std::thread forth ( [&](){ segment_encoder_t( rs_encoder, data4, ecc4 ); } );
+        //---
 
-        first.join();
-        second.join();
-        third.join();
-        forth.join();
+        // Create the threads
+        std::vector<std::thread> threads;
+        for( std::vector<tBigChunk>::size_type i = 0; i < data_big_chunks.size(); i++ )
+        {
+            threads.push_back( std::thread( encode, std::ref( data_big_chunks[i] ), std::ref( ecc_big_chunks[i] ) ) );
+        }
+
+        // Wait all threads
+        for( auto& thread : threads )
+        {
+            if( thread.joinable() )
+                thread.join();
+        }
 
         //---
 
         if( verbose >= 2 )
             std::cout << get_current_time() << " Write output file" << std::endl;
 
-        std::ofstream out_stream( output_ecc_file_name.c_str(), std::ios::binary );
-        if( !out_stream )
-        {
-            std::cout << "reed_solomon::file_encoder() - Error: output ecc file could not be created." << std::endl;
+        error = WriteChunksToFile( ecc_big_chunks, output_ecc_file_name );
+        if( error )
             return 1;
-        }
-
-        out_stream.write( &ecc1[0], ecc1.size() );
-        out_stream.write( &ecc2[0], ecc2.size() );
-        out_stream.write( &ecc3[0], ecc3.size() );
-        out_stream.write( &ecc4[0], ecc4.size() );
-
-        out_stream.close();
     }
     else if( action == eAction::kDecode )
     {
-        full_size = schifra::fileio::file_size( input_ecc_file_name );
-        assert( !( full_size % fec_length ) );
+        std::size_t ecc_full_size = schifra::fileio::file_size( input_ecc_file_name );
+        assert( !( ecc_full_size % fec_length ) );
+        
+        std::size_t ecc_big_chunk_size = nb_data_chunk_per_big_chunk * fec_length; // Must use the same nb_data_chunk_per_big_chunk as the data big_chunk, to have the same number of chunk in both side
 
-        big_chunk_size1 = nb_data_chunk_per_big_chunk * fec_length; // Must use the same nb_data_chunk_per_big_chunk as the data big_chunk, to have the same number of chunk in both side
-        big_chunk_size2 = big_chunk_size1;
-        big_chunk_size3 = big_chunk_size2;
-        big_chunk_size4 = full_size - ( big_chunk_size1 + big_chunk_size2 + big_chunk_size3 );
+        //---
 
-        std::ifstream in_ecc_stream( input_ecc_file_name.c_str(), std::ios::binary );
-        if( !in_ecc_stream )
-        {
-            std::cout << "reed_solomon::file_decoder() - Error: input ecc file could not be opened." << std::endl;
+        std::vector<tBigChunk> ecc_big_chunks;
+        error = AllocateBigChunks( ecc_full_size, ecc_big_chunk_size, ecc_big_chunks );
+        if( error )
             return 1;
-        }
 
-        std::vector<char> ecc1( big_chunk_size1 );
-        in_ecc_stream.read( ecc1.data(), static_cast<std::streamsize>( big_chunk_size1 ) );
-        std::vector<char> ecc2( big_chunk_size2 );
-        in_ecc_stream.read( ecc2.data(), static_cast<std::streamsize>( big_chunk_size2 ) );
-        std::vector<char> ecc3( big_chunk_size3 );
-        in_ecc_stream.read( ecc3.data(), static_cast<std::streamsize>( big_chunk_size3 ) );
-        std::vector<char> ecc4( big_chunk_size4 );
-        in_ecc_stream.read( ecc4.data(), static_cast<std::streamsize>( big_chunk_size4 ) );
+        assert( ecc_big_chunks.size() <= processor_count );
 
-        in_ecc_stream.close();
+        error = ReadFileToChunks( input_ecc_file_name, ecc_big_chunks );
+        if( error )
+            return 1;
+
+        std::vector<tBigChunk> data_decoded_big_chunks;
+        error = AllocateEmptyBigChunks( data_big_chunks.size(), data_decoded_big_chunks );
+        if( error )
+            return 1;
 
         //---
 
@@ -267,41 +351,39 @@ int main( int argc, char *argv[] )
         typedef schifra::reed_solomon::decoder<code_length,fec_length> decoder_t;
         typedef schifra::reed_solomon::segment_decoder<code_length,fec_length> segment_decoder_t;
 
+        // Create the encoder
         const decoder_t rs_decoder( field, gen_poly_index );
 
-        std::vector<char> datadecoded1;
-        std::vector<char> datadecoded2;
-        std::vector<char> datadecoded3;
-        std::vector<char> datadecoded4;
+        // Callback for the thread
+        auto decode = [&]( const tBigChunk& iData, const tBigChunk& iEcc, tBigChunk& oDataDecoded )
+        {
+            segment_decoder_t( rs_decoder, iData, iEcc, oDataDecoded );
+        };
 
-        std::thread first ( [&](){ segment_decoder_t( rs_decoder, data1, ecc1, datadecoded1 ); } );
-        std::thread second( [&](){ segment_decoder_t( rs_decoder, data2, ecc2, datadecoded2 ); } );
-        std::thread third ( [&](){ segment_decoder_t( rs_decoder, data3, ecc3, datadecoded3 ); } );
-        std::thread forth ( [&](){ segment_decoder_t( rs_decoder, data4, ecc4, datadecoded4 ); } );
+        //---
 
-        first.join();
-        second.join();
-        third.join();
-        forth.join();
+        // Create the threads
+        std::vector<std::thread> threads;
+        for( std::vector<tBigChunk>::size_type i = 0; i < data_big_chunks.size(); i++ )
+        {
+            threads.push_back( std::thread( decode, std::ref( data_big_chunks[i] ), std::ref( ecc_big_chunks[i] ), std::ref( data_decoded_big_chunks[i] ) ) );
+        }
+
+        // Wait all threads
+        for( auto& thread : threads )
+        {
+            if( thread.joinable() )
+                thread.join();
+        }
 
         //---
 
         if( verbose >= 2 )
             std::cout << get_current_time() << " Write output file" << std::endl;
 
-        std::ofstream out_stream( output_data_file_name.c_str(), std::ios::binary );
-        if( !out_stream )
-        {
-            std::cout << "reed_solomon::file_decoder() - Error: output data file could not be created." << std::endl;
+        error = WriteChunksToFile( data_decoded_big_chunks, output_data_file_name );
+        if( error )
             return 1;
-        }
-
-        out_stream.write( &datadecoded1[0], datadecoded1.size() );
-        out_stream.write( &datadecoded2[0], datadecoded2.size() );
-        out_stream.write( &datadecoded3[0], datadecoded3.size() );
-        out_stream.write( &datadecoded4[0], datadecoded4.size() );
-
-        out_stream.close();
     }
 
     return 0;
