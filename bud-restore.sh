@@ -107,7 +107,7 @@ fi
 OPTIONS_GPG="--homedir=$GNUPG_PATH"
 
 echo 'Start stuff...'
-duplicity $DRY --progress --progress-rate 60 --gpg-options "$OPTIONS_GPG" \
+duplicity $DRY --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" \
             "file://$INPUT_PATH" "$OUTPUT_PATH"
 
 #---
