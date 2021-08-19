@@ -13,7 +13,6 @@ usage()
 {
     echo "Usage: $0 [-h] [-f] [-d] -k {yes|no|ask} -g /path/to/the/.gnupg/path -i /input/path | \
 sagittarius-mike | sagittarius-family | \
-sagittarius-video | sagittarius-music | sagittarius-photo | \
 virgo-wsl-mike | virgo-wsl-family | \
 virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     echo '  -h: help me'
@@ -100,37 +99,38 @@ case $INPUT_PATH in
     'sagittarius-mike') 
         INPUT_PATH=/home/mike
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
-        ;;
+        OPTIONS='--exclude /home/mike/.cache --exclude /home/mike/.macromedia'
+        ;;                                   # .macromedia + .local = infinite loop
     'sagittarius-family') 
         INPUT_PATH=/home/family
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /home/family/Vidéos --exclude /home/family/Images --exclude /home/family/Musique --exclude /home/family/.cache --exclude /home/family/.macromedia'
         ;;                                                                                                                                # .macromedia + .local = infinite loop
-        
-    'sagittarius-video') 
-        INPUT_PATH=/home/family/Vidéos
-        OUTPUT_PATH="$(pwd)/nas/video"
-        ;;
-    'sagittarius-photo') 
-        INPUT_PATH=/home/family/Images
-        OUTPUT_PATH="$(pwd)/nas/photo"
-        ;;
-    'sagittarius-music') 
-        INPUT_PATH=/home/family/Musique
-        OUTPUT_PATH="$(pwd)/nas/music"
-        ;;
-        
-    'virgo-cyg-mike') 
-        INPUT_PATH=/cygdrive/d/Users/Mike
-        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
-        OPTIONS='--exclude /cygdrive/d/Users/Mike/AppData/Local'
-        ;;
-    'virgo-cyg-family') 
-        INPUT_PATH=/cygdrive/d/Users/Family
-        OUTPUT_PATH="$(pwd)/$INPUT_PATH"
-        OPTIONS='--exclude /cygdrive/d/Users/Family/AppData/Local'
-        ;;
-        
+
+    # 'sagittarius-video') 
+    #     INPUT_PATH=/home/family/Vidéos
+    #     OUTPUT_PATH="$(pwd)/nas/video"
+    #     ;;
+    # 'sagittarius-photo') 
+    #     INPUT_PATH=/home/family/Images
+    #     OUTPUT_PATH="$(pwd)/nas/photo"
+    #     ;;
+    # 'sagittarius-music') 
+    #     INPUT_PATH=/home/family/Musique
+    #     OUTPUT_PATH="$(pwd)/nas/music"
+    #     ;;
+
+    # 'virgo-cyg-mike') 
+    #     INPUT_PATH=/cygdrive/d/Users/Mike
+    #     OUTPUT_PATH="$(pwd)/$INPUT_PATH"
+    #     OPTIONS='--exclude /cygdrive/d/Users/Mike/AppData/Local'
+    #     ;;
+    # 'virgo-cyg-family') 
+    #     INPUT_PATH=/cygdrive/d/Users/Family
+    #     OUTPUT_PATH="$(pwd)/$INPUT_PATH"
+    #     OPTIONS='--exclude /cygdrive/d/Users/Family/AppData/Local'
+    #     ;;
+
     'virgo-wsl-mike') 
         INPUT_PATH=/mnt/d/Users/Mike
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
@@ -141,7 +141,7 @@ case $INPUT_PATH in
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS='--exclude /mnt/d/Users/Family/AppData/Local'
         ;;
-        
+
     'virgo-wsl-video') 
         INPUT_PATH=/mnt/f/Video
         OUTPUT_PATH="$(pwd)/nas/video"
@@ -183,6 +183,13 @@ fi
 read -p "Is it ok ? (y/n): " -r
 if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     exit 1
+fi
+
+if [[ ! -d "$OUTPUT_PATH" ]]; then              # if first backup with none existing directories
+    if [[ "$INPUT_PATH" =~ ^/home/.* ]]; then   # only when done on ubuntu (improve the condition)
+        mkdir -p "$OUTPUT_PATH"
+        chmod -R 777 "$(pwd)/home"              # set the permissions to be readable on wsl
+    fi
 fi
 
 # Start the backup process
