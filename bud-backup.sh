@@ -93,6 +93,9 @@ fi
 # - when the input path is not a real path, convert the 'code' to a real input/output paths
 # - fill the duplicity options for each 'code' (exclude paths/...)
 
+# Remove the interpretation of wildcard when setting --exclude parameters
+GLOBIGNORE="*"
+
 OPTIONS=
 
 case $INPUT_PATH in
@@ -134,7 +137,16 @@ case $INPUT_PATH in
     'virgo-wsl-mike') 
         INPUT_PATH=/mnt/d/Users/Mike
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
-        OPTIONS='--exclude /mnt/d/Users/Mike/AppData/Local'
+        OPTIONS=' --exclude /mnt/d/Users/Mike/AppData/Local'
+        # ue projects exclude
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Binaries'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Build'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/DerivedDataCache'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Intermediate'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Saved'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Script'
+        # ue package exclude
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*package*'
         ;;
     'virgo-wsl-family') 
         INPUT_PATH=/mnt/d/Users/Family
@@ -200,6 +212,9 @@ echo 'Start stuff...'
 duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" $OPTIONS \
             --encrypt-key 63BAF710 --sign-key CA12167B \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
+
+# Set (again) the interpretation of wildcard to manage chmod
+GLOBIGNORE=
 
 chmod -R 777 "$OUTPUT_PATH/"*
 
