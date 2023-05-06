@@ -26,31 +26,42 @@ from ecc.ecc_schifra import cEccSchifra
 
 parser = argparse.ArgumentParser()
 parser.add_argument( 'action', choices=['create', 'check-size', 'fix', 'fix-and-compare'], help='The action to process' )
-parser.add_argument( '-i', '--input', required=True, help='The input file' )
+parser.add_argument( '-i', '--input', nargs='+', type=Path, required=True, help='The input file' )
 args = parser.parse_args()
 
 #---
 
 eccs = []
 
-input = Path( args.input )
+not_existing_input = []
 
-if input.is_file():
-    ecc = cEccSchifra( input )
-    if ecc.IsValidInput():
-        eccs.append( ecc )
-elif input.is_dir():
-    for entry in input.rglob( '*' ):
-        ecc = cEccSchifra( entry )
+for input in args.input:
+    if input.is_file():
+        ecc = cEccSchifra( input )
         if ecc.IsValidInput():
             eccs.append( ecc )
-else:
-    print( Fore.RED + 'The input file doesn\'t exist: {}'.format( args.input ) )
+    elif input.is_dir():
+        for entry in input.rglob( '*' ):
+            ecc = cEccSchifra( entry )
+            if ecc.IsValidInput():
+                eccs.append( ecc )
+    else:
+        not_existing_input.append( input )
+
+if not_existing_input:
+    print( Fore.RED + 'Some input files don\'t exist:' )
+    [ print( Fore.RED + str(input) ) for input in not_existing_input ]
     sys.exit( 1 )
 
 #---
 
-for ecc in eccs:
+print( Fore.GREEN + f'Info: {len(eccs)} files to process' )
+
+for i, ecc in enumerate( eccs ):
+    progress_ratio = i / ( len(eccs) - 1 )
+    progress_percent = int( progress_ratio * 100 )
+    print( Fore.GREEN + f'Info: file {i}/{len(eccs) - 1} - {progress_percent}%' )
+
     if args.action == 'create':
         ecc.ProcessCreate()
     elif args.action == 'check-size':
