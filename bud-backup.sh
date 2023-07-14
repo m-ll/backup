@@ -139,12 +139,12 @@ case $INPUT_PATH in
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
         OPTIONS=' --exclude /mnt/d/Users/Mike/AppData/Local'
         # ue projects exclude
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Binaries'
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Build'
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/DerivedDataCache'
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Intermediate'
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Saved'
-        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*/Script'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/Binaries'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/Build'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/DerivedDataCache'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/Intermediate'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/Saved'
+        OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/**/Script'
         # ue package exclude
         OPTIONS+=' --exclude /mnt/d/Users/Mike/work/Unreal*/*package*'
         ;;
