@@ -209,6 +209,8 @@ fi
 OPTIONS_GPG="--homedir=$GNUPG_PATH"
 
 echo 'Start stuff...'
+# --allow-source-mismatch: when problem with domain name in an incremental backup
+# (But try to avoid it if possible)
 duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" $OPTIONS \
             --encrypt-key 63BAF710 --sign-key CA12167B \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
