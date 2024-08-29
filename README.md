@@ -18,6 +18,7 @@ Everything should be use under Linux or WSL (=Windows Sub Linux)
 # Bud (BackUp Disk) prepare
 
 - plug bud
+- if needed, first mount in wsl: `sudo mount -t drvfs H: /mnt/h`
 - go to bud's root: `cd /media/bud` (or `cd /mnt/f` on WSL)
 - if backup directory doesn't exist: `git clone https://github.com/m-ll/backup.git`
 - OR `git pull backup`
