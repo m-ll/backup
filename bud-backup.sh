@@ -133,14 +133,17 @@ case $INPUT_PATH in
     'virgo-wsl-video') 
         INPUT_PATH=/mnt/f/Video
         OUTPUT_PATH="$(pwd)/nas/video"
+        OPTIONS=' --no-compression'
         ;;
     'virgo-wsl-photo') 
         INPUT_PATH=/mnt/f/Photo
         OUTPUT_PATH="$(pwd)/nas/photo"
+        OPTIONS=' --no-compression'
         ;;
     'virgo-wsl-music') 
         INPUT_PATH=/mnt/f/Music
         OUTPUT_PATH="$(pwd)/nas/music"
+        OPTIONS=' --no-compression'
         ;;
     *)
         OUTPUT_PATH="$(pwd)/$INPUT_PATH"
@@ -176,7 +179,7 @@ fi
 
 # Start the backup process
 
-echo 'Start stuff...'
+echo 'Start stuff...' $OPTIONS
 # PATCH:
 # - add --allow-source-mismatch
 #   when problem with domain name in an incremental backup
