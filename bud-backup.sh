@@ -11,15 +11,13 @@
 
 usage()
 {
-    echo "Usage: $0 [-h] [-f] [-d] -k {yes|no|ask} -g /path/to/the/.gnupg/path -i /input/path | \
+    echo "Usage: $0 [-h] [-f] [-d] -i /input/path | \
 sagittarius-mike | sagittarius-family | \
 virgo-wsl-mike | virgo-wsl-family | \
 virgo-wsl-video | virgo-wsl-music | virgo-wsl-photo"
     echo '  -h: help me'
     echo '  -f: force a full backup'
     echo '  -d: dry run'
-    echo '  -k: keep .gnupg files'
-    echo '  -g: path to .gnupg'
     echo '  -i: input path'
     exit 2
 }
@@ -38,10 +36,6 @@ esac
 FULL=
 # Simulate a backup without changing anything on disk
 DRY=
-# Answer to the last question to keep or not the gnupg directory
-KEEP_GNUPG=
-# The gnupg directory with keys
-GNUPG_PATH=
 # The path to backup
 INPUT_PATH=
 
@@ -53,12 +47,6 @@ while getopts ":hfdk:g:i:" option; do
             ;;
         d)
             DRY='--dry-run'
-            ;;
-        k)
-            KEEP_GNUPG=${OPTARG}
-            ;;
-        g)
-            GNUPG_PATH=${OPTARG}
             ;;
         i)
             INPUT_PATH=${OPTARG}
@@ -72,18 +60,6 @@ shift $((OPTIND-1))
 
 # Check all the mandatory parameters
 
-if [[ -z $KEEP_GNUPG ]]; then
-    echo 'keep gnupg is empty !'
-    usage
-fi
-if [[ x"$KEEP_GNUPG" != x'yes' && x"$KEEP_GNUPG" != x'no' && x"$KEEP_GNUPG" != x'ask' ]]; then
-    echo 'wrong keep argument !'
-    usage
-fi
-if [[ -z $GNUPG_PATH ]]; then
-    echo 'gnupg path is empty !'
-    usage
-fi
 if [[ -z $INPUT_PATH ]]; then
     echo 'input path is empty !'
     usage
@@ -173,12 +149,6 @@ esac
 
 # Display all parameters containing a path and check its existence
 
-echo '.gnupg path: '$GNUPG_PATH
-if [[ ! -d "$GNUPG_PATH" ]]; then
-    echo 'The .gnupg path does not exist !'
-    exit 7
-fi
-
 echo 'input path: '$INPUT_PATH
 if [[ ! -d "$INPUT_PATH" ]]; then
     echo 'The input path does not exist !'
@@ -206,40 +176,16 @@ fi
 
 # Start the backup process
 
-OPTIONS_GPG="--homedir=$GNUPG_PATH"
-
 echo 'Start stuff...'
 # PATCH:
 # - add --allow-source-mismatch
 #   when problem with domain name in an incremental backup
 #   (But try to avoid it if possible)
-# - add simple-quote '' around $OPTIONS_GPG with the last version of duplicity (on ubuntu)
-duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" $OPTIONS \
-            --encrypt-key 63BAF710 --sign-key CA12167B \
+duplicity $FULL $DRY --volsize 2000 --progress --progress-rate 60 $OPTIONS \
+            --encrypt-key 58771CEB5DE165CEA883EE80C2584942FBB9903F --sign-key A35008C5AFA617D1AD021782F265C63126F28B81 \
             "$INPUT_PATH" "file://$OUTPUT_PATH"
 
 # Set (again) the interpretation of wildcard to manage chmod
 GLOBIGNORE=
 
 chmod -R 777 "$OUTPUT_PATH/"*
-
-#---
-
-# Ask to keep/remove the gnupg directory
-
-if [[ $KEEP_GNUPG == 'ask' ]]; then
-    read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        read -p "Really ($GNUPG_PATH) ? (y/n): " -r
-        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-            rm -r $GNUPG_PATH
-        fi
-    fi
-elif [[ $KEEP_GNUPG == 'yes' ]]; then
-    echo '.gnupg folder still here, think to remove it when finished'
-    echo
-elif [[ $KEEP_GNUPG == 'no' ]]; then
-    rm -r $GNUPG_PATH
-    echo '.gnupg folder has been removed'
-    echo
-fi

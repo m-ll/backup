@@ -11,10 +11,9 @@
 
 usage()
 {
-    echo "Usage: $0 [-h] [-d] -g /path/to/the/.gnupg/path -i /input/path -o /output/path"
+    echo "Usage: $0 [-h] [-d] -i /input/path -o /output/path"
     echo '  -h: help me'
     echo '  -d: dry run'
-    echo '  -g: path to .gnupg'
     echo '  -i: input path'
     echo '  -o: output path'
     exit 2
@@ -32,8 +31,6 @@ esac
 
 # Simulate a restore without changing anything on disk
 DRY=
-# The gnupg directory with keys
-GNUPG_PATH=
 # The path of the backup to restore
 INPUT_PATH=
 # The path of the restored backup
@@ -44,9 +41,6 @@ while getopts ":hdg:i:o:" option; do
     case "${option}" in
         d)
             DRY='--dry-run'
-            ;;
-        g)
-            GNUPG_PATH=${OPTARG}
             ;;
         i)
             INPUT_PATH=${OPTARG}
@@ -63,10 +57,6 @@ shift $((OPTIND-1))
 
 # Check all the mandatory parameters
 
-if [[ -z $GNUPG_PATH ]]; then
-    echo 'gnupg path is empty !'
-    usage
-fi
 if [[ -z $INPUT_PATH ]]; then
     echo 'input path is empty !'
     usage
@@ -77,12 +67,6 @@ if [[ -z $OUTPUT_PATH ]]; then
 fi
 
 # Display all parameters containing a path and check its existence
-
-echo '.gnupg path: '$GNUPG_PATH
-if [[ ! -d "$GNUPG_PATH" ]]; then
-    echo 'The .gnupg path does not exist !'
-    exit 7
-fi
 
 echo 'input path: '$INPUT_PATH
 if [[ ! -d "$INPUT_PATH" ]]; then
@@ -104,20 +88,6 @@ fi
 
 # Start the restoration process
 
-OPTIONS_GPG="--homedir=$GNUPG_PATH"
-
 echo 'Start stuff...'
-duplicity $DRY --progress --progress-rate 60 --gpg-binary gpg1 --gpg-options "$OPTIONS_GPG" \
+duplicity $DRY --progress --progress-rate 60 \
             "file://$INPUT_PATH" "$OUTPUT_PATH"
-
-#---
-
-# Ask to keep/remove the gnupg directory
-
-read -p "Remove the .gnupg folder ($GNUPG_PATH) ? (y/n): " -r
-if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-    read -p "Really ($GNUPG_PATH) ? (y/n): " -r
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        rm -r $GNUPG_PATH
-    fi
-fi
