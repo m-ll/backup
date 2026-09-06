@@ -179,7 +179,7 @@ fi
 
 # Start the backup process
 
-echo 'Start stuff...' $OPTIONS
+echo 'Start stuff...'
 # PATCH:
 # - add --allow-source-mismatch
 #   when problem with domain name in an incremental backup
